@@ -291,7 +291,7 @@ Feel free to fork this project and add your own tools! Contributions are welcome
 
 This project is open source and available under the MIT License.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Next.js](https://nextjs.org/) - React framework
 - [ShadCN UI](https://ui.shadcn.com/) - Beautiful UI components
@@ -303,3 +303,8 @@ This project is open source and available under the MIT License.
 ---
 
 Built with ❤️ using Next.js, TypeScript, and AI
+
+---
+
+Author: [M. Yousuf](https://www.linkedin.com/in/muhammad-yousuf952)\
+Date: November 2025
