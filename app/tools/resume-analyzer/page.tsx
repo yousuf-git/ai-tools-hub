@@ -202,27 +202,27 @@ export default function ResumeAnalyzer() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       {/* Header */}
-      <header className="container mx-auto px-4 py-6 flex justify-between items-center">
+      <header className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 flex justify-between items-center">
         <Link href="/">
-          <Button variant="ghost" className="gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            Back to Home
+          <Button variant="ghost" className="gap-1 sm:gap-2 text-sm sm:text-base px-2 sm:px-4">
+            <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+            <span className="hidden xs:inline">Back to</span> Home
           </Button>
         </Link>
         <ThemeToggle />
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+      <main className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className="text-center mb-6 sm:mb-8"
         >
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent px-2">
             Resume & Job Fit Analyzer
           </h1>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-xs sm:text-sm md:text-base text-muted-foreground max-w-2xl mx-auto px-4">
             Upload your resume and job description to get AI-powered insights on how well your resume
             matches the job requirements, identify skill gaps, and receive ATS optimization suggestions.
           </p>
@@ -235,66 +235,67 @@ export default function ResumeAnalyzer() {
             transition={{ delay: 0.2 }}
           >
             <Card className="max-w-3xl mx-auto">
-              <CardHeader>
-                <CardTitle>Upload Your Documents</CardTitle>
-                <CardDescription>
+              <CardHeader className="pb-4 sm:pb-6">
+                <CardTitle className="text-lg sm:text-xl">Upload Your Documents</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
                   Provide your resume and the job description you want to analyze
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-4 sm:space-y-6">
                 {/* Resume Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="resume">Resume (PDF) *</Label>
-                  <div className="flex items-center gap-4">
+                  <Label htmlFor="resume" className="text-sm sm:text-base">Resume (PDF) *</Label>
+                  <div className="flex items-center gap-2 sm:gap-4">
                     <Input
                       id="resume"
                       type="file"
                       accept=".pdf"
                       onChange={handleResumeUpload}
-                      className="cursor-pointer"
+                      className="cursor-pointer text-xs sm:text-sm"
                     />
                     {resumeFile && (
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />
                     )}
                   </div>
                   {resumeFile && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      {resumeFile.name}
+                    <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                      <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="truncate">{resumeFile.name}</span>
                     </p>
                   )}
                 </div>
 
                 {/* Job Description Upload */}
                 <div className="space-y-2">
-                  <Label htmlFor="jobdesc-file">Job Description (PDF or TXT)</Label>
-                  <div className="flex items-center gap-4">
+                  <Label htmlFor="jobdesc-file" className="text-sm sm:text-base">Job Description (PDF or TXT)</Label>
+                  <div className="flex items-center gap-2 sm:gap-4">
                     <Input
                       id="jobdesc-file"
                       type="file"
                       accept=".pdf,.txt"
                       onChange={handleJobDescUpload}
-                      className="cursor-pointer"
+                      className="cursor-pointer text-xs sm:text-sm"
                     />
                     {jobDescFile && (
-                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-500 flex-shrink-0" />
                     )}
                   </div>
                   {jobDescFile && (
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      {jobDescFile.name}
+                    <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-2">
+                      <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="truncate">{jobDescFile.name}</span>
                     </p>
                   )}
                 </div>
 
                 {/* Job Description Text */}
                 <div className="space-y-2">
-                  <Label htmlFor="jobdesc-text">Or Paste Job Description *</Label>
+                  <Label htmlFor="jobdesc-text" className="text-sm sm:text-base">Or Paste Job Description *</Label>
                   <Textarea
                     id="jobdesc-text"
                     placeholder="Paste the job description here..."
-                    rows={8}
+                    rows={6}
+                    className="text-xs sm:text-sm resize-none"
                     value={jobDescText}
                     onChange={(e) => setJobDescText(e.target.value)}
                     disabled={!!jobDescFile}
@@ -439,11 +440,11 @@ export default function ResumeAnalyzer() {
               </Card>
 
               {/* Missing & Weak Skills */}
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl">Missing Skills</CardTitle>
-                    <CardDescription>Skills mentioned in the job but not in your resume</CardDescription>
+                  <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-lg sm:text-xl">Missing Skills</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Skills mentioned in the job but not in your resume</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {analysisResult.missingSkills.length > 0 ? (
@@ -456,21 +457,21 @@ export default function ResumeAnalyzer() {
                             transition={{ delay: index * 0.05 }}
                             className="flex items-start gap-2 p-2 rounded-lg bg-destructive/5"
                           >
-                            <XCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
-                            <span className="text-sm">{skill}</span>
+                            <XCircle className="w-3 h-3 sm:w-4 sm:h-4 text-destructive mt-0.5 flex-shrink-0" />
+                            <span className="text-xs sm:text-sm">{skill}</span>
                           </motion.li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No missing skills identified! 🎉</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">No missing skills identified! 🎉</p>
                     )}
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader>
-                    <CardTitle className="text-xl">Weak Skills</CardTitle>
-                    <CardDescription>Skills present but not well-demonstrated</CardDescription>
+                  <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-lg sm:text-xl">Weak Skills</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Skills present but not well-demonstrated</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {analysisResult.weakSkills.length > 0 ? (
@@ -483,13 +484,13 @@ export default function ResumeAnalyzer() {
                             transition={{ delay: index * 0.05 }}
                             className="flex items-start gap-2 p-2 rounded-lg bg-yellow-500/5"
                           >
-                            <div className="w-4 h-4 rounded-full bg-yellow-500/20 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm">{skill}</span>
+                            <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-yellow-500/20 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs sm:text-sm">{skill}</span>
                           </motion.li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-muted-foreground">All skills well-demonstrated! 💪</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground">All skills well-demonstrated! 💪</p>
                     )}
                   </CardContent>
                 </Card>
@@ -498,36 +499,36 @@ export default function ResumeAnalyzer() {
               {/* Suggested Improvements */}
               {analysisResult.suggestedImprovements.length > 0 && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Suggested Improvements</CardTitle>
-                    <CardDescription>Rewritten sections to better match the job requirements</CardDescription>
+                  <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-lg sm:text-xl">Suggested Improvements</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Rewritten sections to better match the job requirements</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
+                  <CardContent className="space-y-4 sm:space-y-6">
                     {analysisResult.suggestedImprovements.map((improvement, index) => (
                       <motion.div
                         key={index}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
-                        className="p-4 rounded-lg border bg-card"
+                        className="p-3 sm:p-4 rounded-lg border bg-card"
                       >
-                        <h4 className="font-semibold mb-2 text-primary">{improvement.section}</h4>
-                        <div className="space-y-3">
+                        <h4 className="font-semibold mb-2 text-sm sm:text-base text-primary">{improvement.section}</h4>
+                        <div className="space-y-2 sm:space-y-3">
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Original:</p>
-                            <p className="text-sm bg-muted/50 p-3 rounded">{improvement.original}</p>
+                            <p className="text-xs sm:text-sm bg-muted/50 p-2 sm:p-3 rounded leading-relaxed">{improvement.original}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">
                               Improved:
                             </p>
-                            <p className="text-sm bg-green-500/10 p-3 rounded border border-green-500/20">
+                            <p className="text-xs sm:text-sm bg-green-500/10 p-2 sm:p-3 rounded border border-green-500/20 leading-relaxed">
                               {improvement.improved}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-1">Why:</p>
-                            <p className="text-sm text-muted-foreground">{improvement.reason}</p>
+                            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">{improvement.reason}</p>
                           </div>
                         </div>
                       </motion.div>
@@ -539,9 +540,9 @@ export default function ResumeAnalyzer() {
               {/* ATS Optimizations */}
               {analysisResult.atsOptimizations.length > 0 && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>ATS Optimization Tips</CardTitle>
-                    <CardDescription>
+                  <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-lg sm:text-xl">ATS Optimization Tips</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
                       General tips to make your resume more ATS-friendly
                     </CardDescription>
                   </CardHeader>
@@ -553,10 +554,10 @@ export default function ResumeAnalyzer() {
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="flex items-start gap-3 p-3 rounded-lg bg-primary/5"
+                          className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 rounded-lg bg-primary/5"
                         >
-                          <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                          <span className="text-sm">{tip}</span>
+                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-primary mt-0.5 flex-shrink-0" />
+                          <span className="text-xs sm:text-sm leading-relaxed">{tip}</span>
                         </motion.li>
                       ))}
                     </ul>
@@ -565,8 +566,8 @@ export default function ResumeAnalyzer() {
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-4 justify-center">
-                <Button onClick={handleReset} variant="outline" size="lg">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
+                <Button onClick={handleReset} variant="outline" size="lg" className="w-full sm:w-auto">
                   Analyze Another Resume
                 </Button>
               </div>
