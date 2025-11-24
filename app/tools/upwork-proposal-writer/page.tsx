@@ -279,7 +279,7 @@ export default function UpworkProposalWriter() {
                     onChange={(e) => setAdditionalDetails(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    E.g., "Mention my 5 years experience in React" or "Keep it under 150 words"
+                    E.g., &quot;Mention my 5 years experience in React&quot; or &quot;Keep it under 150 words&quot;
                   </p>
                 </div>
 
@@ -576,7 +576,7 @@ export default function UpworkProposalWriter() {
                           </Label>
                           <Textarea
                             id="improvisation-notes"
-                            placeholder="E.g., 'Make it more technical', 'Add emphasis on my React expertise', 'Shorten to 150 words', 'Sound more enthusiastic'..."
+                            placeholder="E.g., &apos;Make it more technical&apos;, &apos;Add emphasis on my React expertise&apos;, &apos;Shorten to 150 words&apos;, &apos;Sound more enthusiastic&apos;..."
                             rows={4}
                             className="text-xs sm:text-sm resize-none"
                             value={improvisationNotes}
@@ -636,7 +636,7 @@ export default function UpworkProposalWriter() {
                         <p className="font-medium mb-1">💡 Tips:</p>
                         <ul className="space-y-1 list-disc list-inside">
                           <li>Review and personalize the proposal before sending</li>
-                          <li>Use "Improvise" to refine specific aspects</li>
+                          <li>Use &quot;Improvise&quot; to refine specific aspects</li>
                           <li>Navigate between versions to compare improvements</li>
                         </ul>
                       </div>
@@ -654,7 +654,7 @@ export default function UpworkProposalWriter() {
                         Your generated proposal will appear here
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Enter a job description and click "Generate Proposal" to get started
+                        Enter a job description and click &quot;Generate Proposal&quot; to get started
                       </p>
                     </motion.div>
                   )}
@@ -750,10 +750,10 @@ export default function UpworkProposalWriter() {
                   ℹ️ How to use:
                 </p>
                 <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>Click "Load Current Version" to fetch the selected proposal</li>
+                  <li>Click &quot;Load Current Version&quot; to fetch the selected proposal</li>
                   <li>Edit the text directly in the editor</li>
                   <li>Add personal touches, portfolio links, or specific details</li>
-                  <li>Click "Copy Edited Proposal" when you're ready</li>
+                  <li>Click &quot;Copy Edited Proposal&quot; when you&apos;re ready</li>
                 </ul>
               </div>
             </CardContent>

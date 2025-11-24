@@ -91,7 +91,7 @@ export default function Home() {
             Welcome to My AI Tools Hub
           </h2>
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground mb-4 sm:mb-8">
-            Hi, I'm <span className="font-semibold text-foreground">M. Yousuf</span>
+            Hi, I&apos;m <span className="font-semibold text-foreground">M. Yousuf</span>
           </p>
           <p className="text-sm sm:text-base md:text-lg text-muted-foreground mb-6 sm:mb-8 leading-relaxed px-2">
             A passionate <b>backend developer</b> creating AI-powered tools to solve real-world problems.
