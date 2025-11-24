@@ -19,15 +19,11 @@ A modern, scalable web application that serves as a hub for multiple AI-powered 
 
 ## 🧩 Available Tools
 
-### 1. Resume & Job Fit Analyzer
+1. [**Resume Analyzer**](./TOOLS_CATALOG.md#1-resume-analyzer) - AI-powered resume analysis and optimization
+2. [**Upwork Proposal Writer**](./TOOLS_CATALOG.md#2-upwork-proposal-writer) - Generate winning Upwork proposals with AI
+3. [**Examiner AI**](./TOOLS_CATALOG.md#3-examiner-ai) - External examination and assessment tool
 
-Upload your resume and job description to receive:
-
-- **Match Score**: Percentage match between your resume and job requirements
-- **Missing Skills**: Skills mentioned in the job but absent from your resume
-- **Weak Skills**: Skills present but not well-demonstrated
-- **Suggested Improvements**: AI-generated rewrites for specific resume sections
-- **ATS Optimization**: Tips to improve your resume for Applicant Tracking Systems
+> 📖 For detailed documentation, features, and usage guides, see [TOOLS_CATALOG.md](./TOOLS_CATALOG.md)
 
 ## 🛠️ Tech Stack
 
