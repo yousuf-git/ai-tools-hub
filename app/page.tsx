@@ -239,7 +239,8 @@ export default function Home() {
                   More Tools Coming Soon
                 </p>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  Stay tuned for exciting new AI-powered tools!
+                  Stay tuned for exciting new AI-powered tools!<br></br>
+                  Drop your suggestions on GitHub/Email
                 </p>
               </CardContent>
             </Card>
