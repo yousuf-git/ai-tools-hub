@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, PenTool, Loader2, Copy, CheckCircle, Sparkles, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowLeft, PenTool, Loader2, Copy, CheckCircle, Sparkles, RefreshCw, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { GEMINI_MODELS } from "@/lib/gemini";
 
 interface ProposalVersion {
@@ -20,12 +21,27 @@ interface ProposalVersion {
 }
 
 export default function UpworkProposalWriter() {
+  // Version control
+  const [proposalVersion, setProposalVersion] = useState<"v1" | "v2">("v1");
+  
+  // Common fields
   const [jobDescription, setJobDescription] = useState("");
   const [additionalDetails, setAdditionalDetails] = useState("");
   const [preferredModel, setPreferredModel] = useState<string>(GEMINI_MODELS[0].name);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  
+  // V2 specific fields
+  const [clientName, setClientName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [budgetRange, setBudgetRange] = useState<"<500" | "500+" | "unknown">("unknown");
+  const [clientExperience, setClientExperience] = useState<"naive" | "experienced" | "unknown">("unknown");
+  const [immediateAvailability, setImmediateAvailability] = useState(false);
+  const [experienceRequired, setExperienceRequired] = useState("");
+  const [startWord, setStartWord] = useState("");
+  const [relevantProject, setRelevantProject] = useState("");
+  const [relevantWorkLink, setRelevantWorkLink] = useState("");
   
   // Version management
   const [versions, setVersions] = useState<ProposalVersion[]>([]);
@@ -52,16 +68,34 @@ export default function UpworkProposalWriter() {
     setError("");
 
     try {
+      const requestBody: any = {
+        jobDescription: jobDescription.trim(),
+        additionalDetails: additionalDetails.trim(),
+        preferredModel,
+        proposalVersion,
+      };
+      
+      // Add v2 specific fields
+      if (proposalVersion === "v2") {
+        requestBody.v2Fields = {
+          clientName: clientName.trim(),
+          jobTitle: jobTitle.trim(),
+          budgetRange,
+          clientExperience,
+          immediateAvailability,
+          experienceRequired: experienceRequired.trim(),
+          startWord: startWord.trim(),
+          relevantProject: relevantProject.trim(),
+          relevantWorkLink: relevantWorkLink.trim(),
+        };
+      }
+      
       const response = await fetch('/api/generate-proposal', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          jobDescription: jobDescription.trim(),
-          additionalDetails: additionalDetails.trim(),
-          preferredModel,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -105,19 +139,37 @@ export default function UpworkProposalWriter() {
     setError("");
 
     try {
+      const requestBody: any = {
+        jobDescription: jobDescription.trim(),
+        additionalDetails: additionalDetails.trim(),
+        preferredModel,
+        previousProposal: currentProposal,
+        improvisationNotes: improvisationNotes.trim(),
+        isRevision: true,
+        proposalVersion,
+      };
+      
+      // Add v2 specific fields
+      if (proposalVersion === "v2") {
+        requestBody.v2Fields = {
+          clientName: clientName.trim(),
+          jobTitle: jobTitle.trim(),
+          budgetRange,
+          clientExperience,
+          immediateAvailability,
+          experienceRequired: experienceRequired.trim(),
+          startWord: startWord.trim(),
+          relevantProject: relevantProject.trim(),
+          relevantWorkLink: relevantWorkLink.trim(),
+        };
+      }
+      
       const response = await fetch('/api/generate-proposal', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          jobDescription: jobDescription.trim(),
-          additionalDetails: additionalDetails.trim(),
-          preferredModel,
-          previousProposal: currentProposal,
-          improvisationNotes: improvisationNotes.trim(),
-          isRevision: true,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -210,7 +262,15 @@ export default function UpworkProposalWriter() {
             <span className="hidden xs:inline">Back to</span> Home
           </Button>
         </Link>
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <Link href="/tools/upwork-proposal-examiner">
+            <Button variant="outline" size="sm" className="gap-2">
+              <Search className="w-4 h-4" />
+              <span className="hidden sm:inline">Proposal Examiner</span>
+            </Button>
+          </Link>
+          <ThemeToggle />
+        </div>
       </header>
 
       {/* Main Content */}
@@ -247,6 +307,33 @@ export default function UpworkProposalWriter() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4 sm:space-y-5">
+                {/* Version Toggle */}
+                <div className="space-y-2">
+                  <Label className="text-sm sm:text-base">Proposal Version</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={proposalVersion === "v1" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setProposalVersion("v1")}
+                      className="flex-1"
+                    >
+                      V1 (Simple)
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={proposalVersion === "v2" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setProposalVersion("v2")}
+                      className="flex-1"
+                    >
+                      V2 (Advanced)
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {proposalVersion === "v1" ? "Quick and simple proposal generation" : "Structured, high-converting proposals with custom inputs"}
+                  </p>
+                </div>
                 {/* Job Description */}
                 <div className="space-y-2">
                   <Label htmlFor="job-description" className="text-sm sm:text-base flex items-center gap-2">
@@ -264,6 +351,132 @@ export default function UpworkProposalWriter() {
                     Copy the full job description from Upwork
                   </p>
                 </div>
+
+                {/* V2 Specific Fields */}
+                {proposalVersion === "v2" && (
+                  <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+                    <p className="text-sm font-medium text-primary">V2 Advanced Options</p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Client Name */}
+                      <div className="space-y-2">
+                        <Label htmlFor="client-name" className="text-xs sm:text-sm">Client Name</Label>
+                        <Input
+                          id="client-name"
+                          placeholder="e.g., John"
+                          value={clientName}
+                          onChange={(e) => setClientName(e.target.value)}
+                          className="text-xs sm:text-sm"
+                        />
+                      </div>
+
+                      {/* Job Title */}
+                      <div className="space-y-2">
+                        <Label htmlFor="job-title" className="text-xs sm:text-sm">Your Role Title</Label>
+                        <Input
+                          id="job-title"
+                          placeholder="e.g., Backend Developer"
+                          value={jobTitle}
+                          onChange={(e) => setJobTitle(e.target.value)}
+                          className="text-xs sm:text-sm"
+                        />
+                      </div>
+
+                      {/* Budget Range */}
+                      <div className="space-y-2">
+                        <Label htmlFor="budget" className="text-xs sm:text-sm">Budget Range</Label>
+                        <Select value={budgetRange} onValueChange={(v: any) => setBudgetRange(v)}>
+                          <SelectTrigger className="text-xs sm:text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unknown">Unknown</SelectItem>
+                            <SelectItem value="<500">Under $500</SelectItem>
+                            <SelectItem value="500+">$500 or more</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Client Experience */}
+                      <div className="space-y-2">
+                        <Label htmlFor="client-exp" className="text-xs sm:text-sm">Client Experience</Label>
+                        <Select value={clientExperience} onValueChange={(v: any) => setClientExperience(v)}>
+                          <SelectTrigger className="text-xs sm:text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unknown">Unknown</SelectItem>
+                            <SelectItem value="naive">Naive/New</SelectItem>
+                            <SelectItem value="experienced">Experienced</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    {/* Experience Required */}
+                    <div className="space-y-2">
+                      <Label htmlFor="exp-required" className="text-xs sm:text-sm">Experience Level Required</Label>
+                      <Input
+                        id="exp-required"
+                        placeholder="e.g., expert, senior (leave empty if not specified)"
+                        value={experienceRequired}
+                        onChange={(e) => setExperienceRequired(e.target.value)}
+                        className="text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    {/* Start Word */}
+                    <div className="space-y-2">
+                      <Label htmlFor="start-word" className="text-xs sm:text-sm">Required Start Word</Label>
+                      <Input
+                        id="start-word"
+                        placeholder="If job asks to start with specific word"
+                        value={startWord}
+                        onChange={(e) => setStartWord(e.target.value)}
+                        className="text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    {/* Relevant Project */}
+                    <div className="space-y-2">
+                      <Label htmlFor="relevant-project" className="text-xs sm:text-sm">Relevant Project Description</Label>
+                      <Textarea
+                        id="relevant-project"
+                        placeholder="Brief description of relevant past work..."
+                        rows={2}
+                        value={relevantProject}
+                        onChange={(e) => setRelevantProject(e.target.value)}
+                        className="text-xs sm:text-sm resize-none"
+                      />
+                    </div>
+
+                    {/* Work Link */}
+                    <div className="space-y-2">
+                      <Label htmlFor="work-link" className="text-xs sm:text-sm">Relevant Work Link</Label>
+                      <Input
+                        id="work-link"
+                        placeholder="Portfolio or project URL"
+                        value={relevantWorkLink}
+                        onChange={(e) => setRelevantWorkLink(e.target.value)}
+                        className="text-xs sm:text-sm"
+                      />
+                    </div>
+
+                    {/* Immediate Availability */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="immediate-availability"
+                        checked={immediateAvailability}
+                        onChange={(e) => setImmediateAvailability(e.target.checked)}
+                        className="w-4 h-4"
+                      />
+                      <Label htmlFor="immediate-availability" className="text-xs sm:text-sm cursor-pointer">
+                        Immediate availability required by client
+                      </Label>
+                    </div>
+                  </div>
+                )}
 
                 {/* Additional Details */}
                 <div className="space-y-2">

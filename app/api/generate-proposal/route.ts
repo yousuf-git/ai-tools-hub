@@ -25,6 +25,18 @@ interface GenerateProposalRequest {
   previousProposal?: string;
   improvisationNotes?: string;
   isRevision?: boolean;
+  proposalVersion?: 'v1' | 'v2';
+  v2Fields?: {
+    clientName?: string;
+    jobTitle?: string;
+    budgetRange?: '<500' | '500+' | 'unknown';
+    clientExperience?: 'naive' | 'experienced' | 'unknown';
+    immediateAvailability?: boolean;
+    experienceRequired?: string;
+    startWord?: string;
+    relevantProject?: string;
+    relevantWorkLink?: string;
+  };
 }
 
 // Shared prompt template for both initial and revision modes
@@ -80,12 +92,94 @@ It should feel like a thoughtful response to that specific client's problem.
 Keep language fluid, confident, respectful, and engaging.
 Note: Don't leave too many placeholders, fill them with believable, project-aligned assumptions rather than leaving placeholders. Only use placeholders where absolutely necessary.`;
 
+// V2 Prompt Template
+const V2_PROMPT_TEMPLATE = `You are an expert Upwork proposal writer who creates concise, high-converting, human-sounding proposals across all job categories.
+
+Primary Objective:
+Win attention in the first 224 characters by directly addressing the client's pain point, then clearly present a solution-oriented proposal aligned with the client's context, maturity level, and job intent.
+
+STRICT RULES (do not violate):
+- Do NOT start with greetings (Hi, Hello, Dear).
+- If <CLIENT_NAME> is provided, start exactly like:
+  "<CLIENT_NAME>, <proposal content>"
+- If the job description explicitly asks to start with a specific word or phrase, start with that word instead.
+- First 224 characters are critical → must hook by reflecting the client's pain point or goal.
+- Keep tone balanced, professional, and confident (not emotional or salesy).
+- Avoid filler phrases and generic claims.
+- Use simple English, no heavy jargon.
+- Max length: 200-250 words (but can be increased if job description is lengthy and requires long proposal)
+- Avoid placeholders unless absolutely required; infer realistic details when possible.
+
+CONTENT REQUIREMENTS (must adapt dynamically):
+
+1. Name Line
+- Start with client name or required start word if provided.
+
+2. Pain Point
+- Clearly state the client's problem or goal in 1–2 lines.
+- Show understanding, not sympathy.
+
+3. Solution & Approach
+- Always propose a solution.
+- Adjust depth based on <CLIENT_EXPERIENCE_LEVEL>:
+  - Naive → explain approach slightly more to build confidence.
+  - Experienced → be precise, outcome-focused, no deep tool explanations.
+- Mention immediate availability ONLY if required in job description.
+- If expertise is requested, explicitly state alignment (e.g., "I'm working as an expert in …").
+
+4. Reference Work
+- Mention relevant past work briefly.
+- Include <RELEVANT_WORK_LINK> only if it naturally fits.
+
+5. Heading Section (mandatory)
+"Here is how I can support you:"
+- Use skimmable bullets.
+- Mention tools/tech ONLY if relevant and not repetitive.
+
+6. Questions (optional)
+- Ask only if something is missing.
+- If critical, place immediately after pain point.
+- Keep questions short and purposeful.
+
+7. CTA (conditional)
+- If <BUDGET_RANGE> is "<500":
+  Include:
+  "Once you share the project details, I'll share relevant samples within a few hours, at no charge."
+- If <BUDGET_RANGE> is "500+":
+  Include:
+  "You can start with confidence — if the work doesn't meet expectations, I'll refund the amount."
+
+8. Signature (mandatory)
+End exactly like:
+"Your <JOB_TITLE_based_role>,
+M. Yousuf"
+
+OUTPUT FORMAT:
+- Single proposal (no title, no bullets outside the support section).
+- Natural paragraph flow.
+- Must feel written specifically for THIS job, not templated.
+- No emojis, no symbols, no markdown.
+
+Before finalizing, silently score the proposal from 1–5 on each point below.
+If any score is below 4, revise until all are ≥4 and then give me final output.
+
+Rubric dimensions:
+Hook strength → First 224 chars clearly reflect client pain or goal
+Specificity → Sounds tailored to this job, not generic
+Clarity → Simple English, no jargon, easy to skim
+Alignment → Solution matches client experience level and job category
+Value focus → Emphasizes outcomes over self-praise
+Flow → Natural progression (pain → solution → support → CTA)
+Compliance → Follows all formatting, tone and sequence rules`;
+
 async function generateProposalWithGemini(
   jobDescription: string,
   additionalDetails: string,
   preferredModel?: string,
   previousProposal?: string,
-  improvisationNotes?: string
+  improvisationNotes?: string,
+  proposalVersion: 'v1' | 'v2' = 'v1',
+  v2Fields?: any
 ): Promise<string> {
   // Determine the order of models to try
   const modelOrder = preferredModel
@@ -99,12 +193,60 @@ async function generateProposalWithGemini(
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
 
-      // Construct the prompt based on user's template
+      // Construct the prompt based on version and mode
       let prompt: string;
 
-      if (previousProposal && improvisationNotes) {
-        // Revision mode - improve upon the previous proposal
-        prompt = `${BASE_PROMPT_TEMPLATE}
+      if (proposalVersion === 'v2') {
+        // V2 Prompt Construction
+        const v2Context = `
+<JOB_DESCRIPTION>
+${jobDescription}
+</JOB_DESCRIPTION>
+
+${v2Fields?.clientName ? `<CLIENT_NAME>${v2Fields.clientName}</CLIENT_NAME>` : ''}
+${v2Fields?.jobTitle ? `<JOB_TITLE>${v2Fields.jobTitle}</JOB_TITLE>` : ''}
+${v2Fields?.budgetRange && v2Fields.budgetRange !== 'unknown' ? `<BUDGET_RANGE>${v2Fields.budgetRange}</BUDGET_RANGE>` : ''}
+${v2Fields?.clientExperience && v2Fields.clientExperience !== 'unknown' ? `<CLIENT_EXPERIENCE_LEVEL>${v2Fields.clientExperience}</CLIENT_EXPERIENCE_LEVEL>` : ''}
+${v2Fields?.immediateAvailability ? `<IMMEDIATE_AVAILABILITY_REQUIRED>true</IMMEDIATE_AVAILABILITY_REQUIRED>` : ''}
+${v2Fields?.experienceRequired ? `<EXPERIENCE_LEVEL_REQUIRED>${v2Fields.experienceRequired}</EXPERIENCE_LEVEL_REQUIRED>` : ''}
+${v2Fields?.startWord ? `<START_WORD_FROM_JOB>${v2Fields.startWord}</START_WORD_FROM_JOB>` : ''}
+${v2Fields?.relevantProject ? `<RELEVANT_PROJECT_DESCRIPTION>${v2Fields.relevantProject}</RELEVANT_PROJECT_DESCRIPTION>` : ''}
+${v2Fields?.relevantWorkLink ? `<RELEVANT_WORK_LINK>${v2Fields.relevantWorkLink}</RELEVANT_WORK_LINK>` : ''}
+${additionalDetails ? `<ADDITIONAL_CONTEXT>${additionalDetails}</ADDITIONAL_CONTEXT>` : ''}
+`;
+
+        if (previousProposal && improvisationNotes) {
+          // V2 Revision mode
+          prompt = `${V2_PROMPT_TEMPLATE}
+
+---
+INPUT VARIABLES:
+${v2Context}
+
+<PREVIOUS_PROPOSAL>
+${previousProposal}
+</PREVIOUS_PROPOSAL>
+
+<USER_IMPROVEMENT_NOTES>
+${improvisationNotes}
+</USER_IMPROVEMENT_NOTES>
+
+Based on the user's feedback, generate an IMPROVED version of the proposal that addresses their concerns while maintaining all V2 guidelines and structure.`;
+        } else {
+          // V2 Initial generation
+          prompt = `${V2_PROMPT_TEMPLATE}
+
+---
+INPUT VARIABLES:
+${v2Context}
+
+Generate a compelling Upwork proposal now following all the rules and structure outlined above.`;
+        }
+      } else {
+        // V1 Prompt (existing logic)
+        if (previousProposal && improvisationNotes) {
+          // V1 Revision mode
+          prompt = `${BASE_PROMPT_TEMPLATE}
 ---
 
 Job Description:
@@ -119,9 +261,9 @@ User's Improvement Notes:
 ${improvisationNotes}
 
 Based on the user's feedback, generate an IMPROVED version of the proposal that addresses their concerns and incorporates their suggestions. Make the necessary changes while maintaining the overall quality and professionalism.`;
-      } else {
-        // Initial generation mode
-        prompt = `${BASE_PROMPT_TEMPLATE}
+        } else {
+          // V1 Initial generation mode
+          prompt = `${BASE_PROMPT_TEMPLATE}
 ---
 
 Job Description:
@@ -130,6 +272,7 @@ ${jobDescription}
 ${additionalDetails ? `Additional Context:\n${additionalDetails}\n` : ''}
 
 Generate a compelling Upwork proposal now.`;
+        }
       }
 
       const result = await model.generateContent(prompt);
@@ -170,7 +313,9 @@ export async function POST(request: NextRequest) {
       preferredModel,
       previousProposal,
       improvisationNotes,
-      isRevision = false
+      isRevision = false,
+      proposalVersion = 'v1',
+      v2Fields
     } = body;
 
     if (!jobDescription || jobDescription.trim().length === 0) {
@@ -193,7 +338,9 @@ export async function POST(request: NextRequest) {
       additionalDetails,
       preferredModel,
       previousProposal,
-      improvisationNotes
+      improvisationNotes,
+      proposalVersion,
+      v2Fields
     );
 
     return NextResponse.json({ proposal });

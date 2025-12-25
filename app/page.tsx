@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FileText, Github, Linkedin, Mail, ArrowRight, Brain, PenTool } from "lucide-react";
+import { FileText, Github, Linkedin, Mail, ArrowRight, Brain, PenTool, Search } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +32,15 @@ const tools = [
     icon: PenTool,
     href: "/tools/upwork-proposal-writer",
     color: "from-green-500 to-emerald-500",
+  },
+  {
+    id: "upwork-proposal-examiner",
+    name: "Upwork Proposal Examiner",
+    description:
+      "Get professional evaluation and actionable feedback on your proposals with detailed scores and improvement suggestions.",
+    icon: Search,
+    href: "/tools/upwork-proposal-examiner",
+    color: "from-blue-500 to-indigo-500",
   },
   {
     id: "examiner-ai",
