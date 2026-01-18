@@ -11,13 +11,13 @@ export const metadata: Metadata = {
   keywords: ["AI tools", "resume analyzer", "proposal writer", "Upwork", "AI assistant", "Gemini AI"],
   authors: [{ name: "AI Tools Hub" }],
   creator: "AI Tools Hub",
-  metadataBase: new URL('https://tools-hub.vercel.app'),
+  metadataBase: new URL('https://toolshub.yousuf-dev.com/'),
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: 'https://tools-hub.vercel.app',
+    url: 'https://toolshub.yousuf-dev.com/',
     title: 'AI Tools Hub - Your Personal AI Assistant Platform',
-    description: 'A modern platform for AI-powered tools including resume analysis, Upwork proposal writing, and more.',
+    description: 'A modern platform for AI-powered tools including resume analysis, Proposal writing, and more.',
     siteName: 'AI Tools Hub',
   },
   twitter: {

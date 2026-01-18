@@ -48,7 +48,7 @@ const tools = [
     description:
       "Upload a PDF document to analyze its content, then get evaluated with relevant AI-generated questions to test your understanding.",
     icon: Brain,
-    href: "https://examinerai.yousuf-dev.com",
+    href: "https://huggingface.co/spaces/yousuf-dev/mumtahinGpt",
     color: "from-purple-500 to-pink-500",
     isExternal: true,
   },
