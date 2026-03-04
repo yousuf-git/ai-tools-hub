@@ -103,7 +103,7 @@ export default function Home() {
             Hi, I&apos;m <span className="font-semibold text-foreground">M. Yousuf</span>
           </p>
           <p className="text-sm sm:text-base md:text-lg text-muted-foreground mb-6 sm:mb-8 leading-relaxed px-2">
-            A passionate <b>backend developer</b> creating AI-powered tools to solve real-world problems.
+            A passionate <b>full stack developer</b> creating AI-powered tools to solve real-world problems.
             This platform brings together multiple AI tools in one place, each designed to
             make your life easier and more productive. Explore the tools below and let AI
             assist you in your daily tasks.
@@ -259,9 +259,17 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 mt-12 sm:mt-20 border-t">
-        <p className="text-center text-xs sm:text-sm text-muted-foreground">
-          Built with ❤️ using Next.js, TypeScript, and AI
-        </p>
+        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/nextjs/nextjs-original.svg" alt="Next.js" className="w-4 h-4" />
+          </div>
+          <div className="flex items-center gap-1">
+            <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" alt="TypeScript" className="w-4 h-4" />
+          </div>
+          <div className="flex items-center gap-1">
+            <img src="https://www.gstatic.com/lamda/images/gemini_sparkle_v002_d4735304ff6292a690345.svg" alt="Gemini AI" className="w-4 h-4" />
+          </div>
+        </div>
       </footer>
     </div>
   );
