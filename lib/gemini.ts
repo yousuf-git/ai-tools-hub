@@ -4,17 +4,17 @@ const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '
 
 // Model configuration with rate limits
 export const GEMINI_MODELS = [
-  { name: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', rateLimit: 3, description: 'Balanced speed and quality' },
-  { name: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite', rateLimit: 5, description: 'Fastest, lightweight' },
-  { name: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', rateLimit: 3, description: 'Fast, lightweight' },
-  { name: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', rateLimit: 3, description: 'Balanced' },
-  { name: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', rateLimit: 1, description: 'Highest quality (slowest)' },
-  { name: 'gemini-3-flash-preview', label: 'Gemini 3 Flash Preview', rateLimit: 3, description: 'Next-gen flash model' },
-  { name: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', rateLimit: 1, description: 'Next-gen pro model' },
-  { name: 'gemma-3-27b-it', label: 'Gemma 3 27B', rateLimit: 2, description: 'Large model, high quality' },
-  { name: 'gemma-3-12b-it', label: 'Gemma 3 12B', rateLimit: 3, description: 'Medium model, balanced' },
-  { name: 'gemma-3-4b-it', label: 'Gemma 3 4B', rateLimit: 4, description: 'Small model, fast' },
-  { name: 'gemma-3-1b-it', label: 'Gemma 3 1B', rateLimit: 5, description: 'Smallest model, fastest' },
+  { name: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', rateLimit: 30, description: 'Balanced speed and quality' },
+  { name: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite', rateLimit: 15, description: 'Fastest, lightweight' },
+  { name: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', rateLimit: 30, description: 'Fast, lightweight' },
+  { name: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', rateLimit: 30, description: 'Balanced' },
+  { name: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', rateLimit: 10, description: 'Highest quality (slowest)' },
+  { name: 'gemini-3-flash-preview', label: 'Gemini 3 Flash', rateLimit: 30, description: 'Latest flash model (default)' },
+  { name: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview', rateLimit: 15, description: 'Next-gen pro model' },
+  { name: 'gemma-3-27b-it', label: 'Gemma 3 27B', rateLimit: 20, description: 'Large model, high quality' },
+  { name: 'gemma-3-12b-it', label: 'Gemma 3 12B', rateLimit: 30, description: 'Medium model, balanced' },
+  { name: 'gemma-3-4b-it', label: 'Gemma 3 4B', rateLimit: 14, description: 'Small model, fast' },
+  { name: 'gemma-3-1b-it', label: 'Gemma 3 1B', rateLimit: 15, description: 'Smallest model, fastest' },
 ] as const;
 
 export interface AnalysisResult {
