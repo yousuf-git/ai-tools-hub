@@ -19,11 +19,11 @@ A modern, scalable web application that serves as a hub for multiple AI-powered 
 
 ## 🧩 Available Tools
 
-1. [**Resume Analyzer**](./TOOLS_CATALOG.md#1-resume-analyzer) - AI-powered resume analysis and optimization
-2. [**Upwork Proposal Writer**](./TOOLS_CATALOG.md#2-upwork-proposal-writer) - Generate winning Upwork proposals with AI
-3. [**Examiner AI**](./TOOLS_CATALOG.md#3-examiner-ai) - External examination and assessment tool
+1. [**Resume Analyzer**](./docs/TOOLS_CATALOG.md#1-resume-analyzer) - AI-powered resume analysis and optimization
+2. [**Upwork Proposal Writer**](./docs/TOOLS_CATALOG.md#2-upwork-proposal-writer) - Generate winning Upwork proposals with AI
+3. [**Examiner AI**](./docs/TOOLS_CATALOG.md#3-examiner-ai) - External examination and assessment tool
 
-> 📖 For detailed documentation, features, and usage guides, see [TOOLS_CATALOG.md](./TOOLS_CATALOG.md)
+> 📖 For detailed documentation, features, and usage guides, see [TOOLS_CATALOG.md](./docs/TOOLS_CATALOG.md)
 
 ## 🛠️ Tech Stack
 
