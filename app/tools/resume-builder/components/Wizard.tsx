@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   Sparkles,
   Loader2,
@@ -667,6 +668,18 @@ function StepReview() {
         When it looks right, hit <strong>Export PDF</strong> in the top bar. It uses the browser print pipeline with the
         template&apos;s A4 margins; choose &quot;Save as PDF&quot; and disable headers/footers in the print dialog.
       </p>
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 mt-3">
+        <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <Sparkles className="w-4 h-4 text-primary" /> Check it against the job
+        </p>
+        <p className="mt-1">
+          Once you&apos;ve saved the PDF, run it through the{" "}
+          <Link href="/tools/resume-analyzer" className="text-primary font-medium hover:underline">
+            Resume Analyzer
+          </Link>{" "}
+          to score it against the job description and catch anything missing.
+        </p>
+      </div>
     </div>
   );
 }

@@ -10,6 +10,13 @@ interface EditableProps {
   className?: string;
   tag?: "span" | "div" | "p" | "strong" | "li";
   ariaLabel?: string;
+  /**
+   * When set (and non-empty), the field renders as a real `<a href>` so it
+   * becomes a clickable link in the exported PDF. Editing still works: a plain
+   * click places the caret (navigation is suppressed); Ctrl/Cmd+click follows
+   * the link.
+   */
+  href?: string;
 }
 
 /**
@@ -27,6 +34,7 @@ export default function Editable({
   className = "",
   tag = "span",
   ariaLabel,
+  href,
 }: EditableProps) {
   const ref = useRef<HTMLElement>(null);
 
@@ -53,7 +61,20 @@ export default function Editable({
     }
   };
 
-  const Tag = tag as React.ElementType;
+  const isLink = Boolean(href);
+
+  // On screen, a plain click on a link field should edit it, not navigate.
+  // The caret is placed on mousedown, so preventing the click's default keeps
+  // editing intact. Ctrl/Cmd+click still follows the link.
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isLink || e.metaKey || e.ctrlKey) return;
+    e.preventDefault();
+  };
+
+  const Tag = (isLink ? "a" : tag) as React.ElementType;
+  const linkProps = isLink
+    ? { href, ...(href!.startsWith("mailto:") ? {} : { target: "_blank", rel: "noopener noreferrer" }), onClick: handleClick }
+    : {};
 
   return (
     <Tag
@@ -67,6 +88,7 @@ export default function Editable({
       className={`editable ${className}`}
       onBlur={commit}
       onKeyDown={handleKeyDown}
+      {...linkProps}
     />
   );
 }

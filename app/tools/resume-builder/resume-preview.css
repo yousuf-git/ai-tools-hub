@@ -67,10 +67,15 @@
   flex-wrap: wrap;
   gap: 4px 0;
 }
-.resume-sheet .contact span + span::before {
+.resume-sheet .contact > *:not(:first-child)::before {
   content: "·";
   margin: 0 7px;
   color: var(--hairline);
+}
+/* Contact links keep the muted contact color — they're clickable in the PDF,
+   not visually loud. */
+.resume-sheet .contact a {
+  color: inherit;
 }
 
 /* ---- Sections ---- */
@@ -149,6 +154,9 @@
   margin-left: 4px;
   font-weight: 500;
 }
+.resume-sheet .entry-title .ext a {
+  color: var(--accent);
+}
 .resume-sheet .entry-meta {
   font-size: var(--fs-small);
   color: var(--ink-soft);
@@ -190,6 +198,34 @@
 }
 .resume-sheet .line-item .where {
   color: var(--ink-soft);
+}
+
+/* ---- Education ---- */
+.resume-sheet .edu-item {
+  margin-bottom: 7px;
+  break-inside: avoid;
+}
+.resume-sheet .edu-item:last-child {
+  margin-bottom: 0;
+}
+.resume-sheet .edu-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.resume-sheet .edu-line strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  font-size: 9.5pt;
+}
+.resume-sheet .edu-line .where {
+  color: var(--ink-soft);
+}
+.resume-sheet .edu-detail {
+  color: var(--ink-soft);
+  font-size: var(--fs-small);
+  margin-top: 1px;
 }
 
 /* ============================================================

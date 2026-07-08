@@ -1,13 +1,18 @@
 "use client";
 
 import Editable from "./Editable";
-import type { ResumeDraft } from "@/lib/resume/types";
+import type { Basics, ResumeDraft } from "@/lib/resume/types";
 
 export type Patch = (recipe: (draft: ResumeDraft) => void) => void;
+export type PatchBasics = (recipe: (basics: Basics) => void) => void;
 
 interface Props {
   draft: ResumeDraft;
   patch: Patch;
+  /** Identity (name/role/contact) lives on the profile, not the draft, so it is
+   *  entered once and always shown. The header edits it through `patchBasics`. */
+  basics: Basics;
+  patchBasics: PatchBasics;
 }
 
 const splitCsv = (s: string) =>
@@ -16,11 +21,23 @@ const splitCsv = (s: string) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
+// Turn a raw field value into an href for the exported PDF. Empty → undefined
+// so the field renders as plain editable text (no dangling link).
+const httpHref = (v: string) => {
+  const t = v.trim();
+  if (!t) return undefined;
+  return /^https?:\/\//i.test(t) ? t : `https://${t}`;
+};
+const mailHref = (v: string) => {
+  const t = v.trim();
+  return t ? `mailto:${t}` : undefined;
+};
+
 /**
  * Pure preview of the resume `draft`. Replicates docs/resume-template.html.
  * Every visible field is inline-editable; edits mutate the draft via `patch`.
  */
-export default function ResumePreview({ draft, patch }: Props) {
+export default function ResumePreview({ draft, patch, basics, patchBasics }: Props) {
   return (
     <>
       {/* Template fonts */}
@@ -35,52 +52,56 @@ export default function ResumePreview({ draft, patch }: Props) {
           <Editable
             tag="div"
             className="name"
-            value={draft.basics.name}
+            value={basics.name}
             placeholder="Your Name"
-            onCommit={(v) => patch((d) => void (d.basics.name = v))}
+            onCommit={(v) => patchBasics((b) => void (b.name = v))}
           />
           <Editable
             tag="div"
             className="role"
-            value={draft.basics.role}
+            value={basics.role}
             placeholder="Your Role"
-            onCommit={(v) => patch((d) => void (d.basics.role = v))}
+            onCommit={(v) => patchBasics((b) => void (b.role = v))}
           />
           <div className="contact">
             <Editable
-              value={draft.basics.email}
+              value={basics.email}
+              href={mailHref(basics.email)}
               placeholder="email"
-              onCommit={(v) => patch((d) => void (d.basics.email = v))}
+              onCommit={(v) => patchBasics((b) => void (b.email = v))}
             />
             <Editable
-              value={draft.basics.phone}
+              value={basics.phone}
               placeholder="phone"
-              onCommit={(v) => patch((d) => void (d.basics.phone = v))}
+              onCommit={(v) => patchBasics((b) => void (b.phone = v))}
             />
             <Editable
-              value={draft.basics.location}
+              value={basics.location}
               placeholder="location"
-              onCommit={(v) => patch((d) => void (d.basics.location = v))}
+              onCommit={(v) => patchBasics((b) => void (b.location = v))}
             />
             <span>
               <Editable
-                value={draft.basics.portfolio}
+                value={basics.portfolio}
+                href={httpHref(basics.portfolio)}
                 placeholder="portfolio"
-                onCommit={(v) => patch((d) => void (d.basics.portfolio = v))}
+                onCommit={(v) => patchBasics((b) => void (b.portfolio = v))}
               />
             </span>
             <span>
               <Editable
-                value={draft.basics.github}
+                value={basics.github}
+                href={httpHref(basics.github)}
                 placeholder="github"
-                onCommit={(v) => patch((d) => void (d.basics.github = v))}
+                onCommit={(v) => patchBasics((b) => void (b.github = v))}
               />
             </span>
             <span>
               <Editable
-                value={draft.basics.linkedin}
+                value={basics.linkedin}
+                href={httpHref(basics.linkedin)}
                 placeholder="linkedin"
-                onCommit={(v) => patch((d) => void (d.basics.linkedin = v))}
+                onCommit={(v) => patchBasics((b) => void (b.linkedin = v))}
               />
             </span>
           </div>
@@ -198,7 +219,18 @@ export default function ResumePreview({ draft, patch }: Props) {
                     />
                     {(proj.liveUrl || proj.codeUrl) && (
                       <span className="ext">
-                        ↗ {[proj.liveUrl && "live", proj.codeUrl && "code"].filter(Boolean).join(" · ")}
+                        ↗{" "}
+                        {proj.liveUrl && (
+                          <a href={httpHref(proj.liveUrl)} target="_blank" rel="noopener noreferrer">
+                            live
+                          </a>
+                        )}
+                        {proj.liveUrl && proj.codeUrl && " · "}
+                        {proj.codeUrl && (
+                          <a href={httpHref(proj.codeUrl)} target="_blank" rel="noopener noreferrer">
+                            code
+                          </a>
+                        )}
                       </span>
                     )}
                   </div>
@@ -267,46 +299,47 @@ export default function ResumePreview({ draft, patch }: Props) {
           <section>
             <h2>Education</h2>
             {draft.education.map((e, i) => (
-              <div className="line-item" key={e.id}>
-                <div>
-                  <Editable
-                    tag="strong"
-                    value={e.degree}
-                    placeholder="Degree"
-                    onCommit={(v) => patch((d) => void (d.education[i].degree = v))}
-                  />{" "}
-                  <span className="where">
-                    {"— "}
+              <div className="edu-item" key={e.id}>
+                <div className="edu-head">
+                  <div className="edu-line">
                     <Editable
-                      value={e.institution}
-                      placeholder="Institution"
-                      onCommit={(v) => patch((d) => void (d.education[i].institution = v))}
+                      tag="strong"
+                      value={e.degree}
+                      placeholder="Degree"
+                      onCommit={(v) => patch((d) => void (d.education[i].degree = v))}
                     />
-                    {e.detail !== undefined && (
-                      <>
-                        {" · "}
-                        <Editable
-                          value={e.detail}
-                          placeholder="detail"
-                          onCommit={(v) => patch((d) => void (d.education[i].detail = v))}
-                        />
-                      </>
-                    )}
-                  </span>
+                    <span className="where">
+                      {" — "}
+                      <Editable
+                        value={e.institution}
+                        placeholder="Institution"
+                        onCommit={(v) => patch((d) => void (d.education[i].institution = v))}
+                      />
+                    </span>
+                  </div>
+                  <div className="entry-meta">
+                    <Editable
+                      value={e.start}
+                      placeholder="Start"
+                      onCommit={(v) => patch((d) => void (d.education[i].start = v))}
+                    />
+                    {" – "}
+                    <Editable
+                      value={e.end}
+                      placeholder="End"
+                      onCommit={(v) => patch((d) => void (d.education[i].end = v))}
+                    />
+                  </div>
                 </div>
-                <div className="entry-meta">
-                  <Editable
-                    value={e.start}
-                    placeholder="Start"
-                    onCommit={(v) => patch((d) => void (d.education[i].start = v))}
-                  />
-                  {" – "}
-                  <Editable
-                    value={e.end}
-                    placeholder="End"
-                    onCommit={(v) => patch((d) => void (d.education[i].end = v))}
-                  />
-                </div>
+                {e.detail !== undefined && (
+                  <div className="edu-detail">
+                    <Editable
+                      value={e.detail}
+                      placeholder="detail"
+                      onCommit={(v) => patch((d) => void (d.education[i].detail = v))}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </section>

@@ -53,6 +53,18 @@ export default function ResumeBuilderPage() {
         await store.setDraft(d);
       }
 
+      // The header now reads identity from the profile. Older drafts may hold
+      // basics the user typed inline before this change — pull any value the
+      // profile is missing back in so nothing they entered disappears.
+      let basicsChanged = false;
+      (Object.keys(p.basics) as (keyof Profile["basics"])[]).forEach((k) => {
+        if (!p!.basics[k] && d!.basics[k]) {
+          p!.basics[k] = d!.basics[k];
+          basicsChanged = true;
+        }
+      });
+      if (basicsChanged) await store.setProfile(p);
+
       setProfileState(p);
       setProjects(projs);
       setDraftState(d);
@@ -77,6 +89,16 @@ export default function ResumeBuilderPage() {
     setDraftState((prev) => {
       const next = structuredClone(prev);
       recipe(next);
+      return next;
+    });
+  }, []);
+
+  // Basics = identity. They live on the profile so the header reflects whatever
+  // was entered in "My Profile", and inline header edits persist to the profile.
+  const patchBasics = useCallback((recipe: (b: Profile["basics"]) => void) => {
+    setProfileState((prev) => {
+      const next = structuredClone(prev);
+      recipe(next.basics);
       return next;
     });
   }, []);
@@ -121,7 +143,8 @@ export default function ResumeBuilderPage() {
     if (!confirm("Copy the current resume (summary, skills, experience, certs, education) back into your profile?")) return;
     setProfileState((prev) => ({
       ...prev,
-      basics: { ...draft.basics },
+      // basics are edited directly on the profile via the header, so they are
+      // already current — don't overwrite them with the draft's stale copy.
       summary: draft.summary,
       skills: draft.skills.map((s) => ({ category: s.category, items: [...s.items] })),
       experience: prev.experience.map((job) => {
@@ -238,7 +261,7 @@ export default function ResumeBuilderPage() {
 
           <div className="rb-preview-center flex justify-center py-6">
             <div className="resume-scale-wrap" style={{ zoom }}>
-              <ResumePreview draft={draft} patch={patch} />
+              <ResumePreview draft={draft} patch={patch} basics={profile.basics} patchBasics={patchBasics} />
             </div>
           </div>
         </div>
