@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FileText, Github, Linkedin, Mail, ArrowRight, Brain, PenTool, Search } from "lucide-react";
+import { FileText, Github, Linkedin, Mail, ArrowRight, Brain, PenTool, Search, FileEdit } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,15 @@ const tools = [
     icon: FileText,
     href: "/tools/resume-analyzer",
     color: "from-blue-500 to-cyan-500",
+  },
+  {
+    id: "resume-builder",
+    name: "JD-Tailored Resume Builder",
+    description:
+      "Build a developer resume tailored to any job description. AI suggests; you control every field with live inline editing and one-click PDF export.",
+    icon: FileEdit,
+    href: "/tools/resume-builder",
+    color: "from-teal-500 to-cyan-500",
   },
   {
     id: "upwork-proposal-writer",

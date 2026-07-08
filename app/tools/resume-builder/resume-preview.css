@@ -1,0 +1,292 @@
+/* ============================================================
+   Resume preview — ported verbatim from docs/resume-template.html.
+   All selectors are scoped under .resume-sheet so the template's
+   typographic tokens never leak into the surrounding app shell.
+   ============================================================ */
+
+.resume-sheet {
+  --ink: #16181d;
+  --ink-soft: #4a4f5a;
+  --accent: #0d5c63;
+  --hairline: #d7d9de;
+  --page-w: 210mm; /* A4 */
+  --fs-body: 9.8pt;
+  --fs-small: 8.7pt;
+
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: var(--fs-body);
+  line-height: 1.42;
+  color: var(--ink);
+  width: var(--page-w);
+  padding: 14mm 17mm;
+  background: #fff;
+  box-shadow: 0 2px 24px rgba(20, 24, 32, 0.12);
+  box-sizing: border-box;
+}
+.resume-sheet * {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.resume-sheet a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.resume-sheet .mono {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 8.5pt;
+}
+
+/* ---- Header ---- */
+.resume-sheet header {
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--ink);
+}
+.resume-sheet .name {
+  font-family: "Space Grotesk", "Helvetica Neue", sans-serif;
+  font-weight: 700;
+  font-size: 23pt;
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+.resume-sheet .role {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  font-size: 10.5pt;
+  color: var(--accent);
+  margin-top: 3px;
+  letter-spacing: 0.02em;
+}
+.resume-sheet .contact {
+  margin-top: 7px;
+  font-size: var(--fs-small);
+  color: var(--ink-soft);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 0;
+}
+.resume-sheet .contact span + span::before {
+  content: "·";
+  margin: 0 7px;
+  color: var(--hairline);
+}
+
+/* ---- Sections ---- */
+.resume-sheet section {
+  margin-top: 14px;
+}
+.resume-sheet h2 {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 8.9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  break-after: avoid;
+}
+.resume-sheet h2::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--hairline);
+}
+.resume-sheet h2::before {
+  content: "";
+  width: 14px;
+  border-top: 2px solid var(--accent);
+}
+
+/* ---- Skills ---- */
+.resume-sheet .skill-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 3.5px;
+}
+.resume-sheet .skill-label {
+  flex: 0 0 96px;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  font-size: 8.4pt;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-top: 1px;
+}
+.resume-sheet .skill-items {
+  flex: 1;
+}
+
+/* ---- Entries (experience / projects) ---- */
+.resume-sheet .entry {
+  margin-bottom: 11px;
+  break-inside: avoid;
+}
+.resume-sheet .entry:last-child {
+  margin-bottom: 0;
+}
+.resume-sheet .entry-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.resume-sheet .entry-title {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 700;
+  font-size: 10.3pt;
+}
+.resume-sheet .entry-title a {
+  color: var(--ink);
+}
+.resume-sheet .entry-title .ext {
+  color: var(--accent);
+  font-size: 8.5pt;
+  margin-left: 4px;
+  font-weight: 500;
+}
+.resume-sheet .entry-meta {
+  font-size: var(--fs-small);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.resume-sheet .entry-sub {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 9.3pt;
+}
+.resume-sheet .stack {
+  color: var(--accent);
+  margin: 2px 0 3px;
+}
+.resume-sheet .entry ul {
+  margin: 3px 0 0 14px;
+}
+.resume-sheet .entry li {
+  margin-bottom: 2.5px;
+  padding-left: 2px;
+}
+.resume-sheet .entry li::marker {
+  color: var(--accent);
+}
+
+/* ---- Compact lists ---- */
+.resume-sheet .line-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 5px;
+  break-inside: avoid;
+}
+.resume-sheet .line-item strong {
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 500;
+  font-size: 9.5pt;
+}
+.resume-sheet .line-item .where {
+  color: var(--ink-soft);
+}
+
+/* ============================================================
+   Inline-edit affordances (screen only)
+   ============================================================ */
+.resume-sheet .editable {
+  outline: none;
+  border-radius: 3px;
+  transition: background-color 0.12s, box-shadow 0.12s;
+  cursor: text;
+}
+.resume-sheet .editable:hover {
+  background: rgba(13, 92, 99, 0.06);
+}
+.resume-sheet .editable:focus {
+  background: rgba(13, 92, 99, 0.1);
+  box-shadow: 0 0 0 2px rgba(13, 92, 99, 0.35);
+}
+.resume-sheet .editable[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #b3b6bc;
+  font-style: italic;
+}
+
+/* ============================================================
+   Screen scaling + print pipeline
+   ============================================================ */
+.resume-scale-wrap {
+  /* `zoom` reflows layout box (unlike transform: scale) so the pane
+     has no phantom whitespace. Chrome/Edge/Firefox support it. */
+  transform-origin: top center;
+}
+
+@media print {
+  /* Margins live on @page so EVERY printed page gets them (matches the template).
+     We hide the app chrome with display:none and let the sheet flow normally
+     in document order — no absolute positioning, so @page margins are honored
+     and multi-page content paginates correctly. */
+  @page {
+    size: A4;
+    margin: 14mm 17mm;
+  }
+  /* Force a white page even when the app is in dark theme (the .dark class
+     sets dark backgrounds that otherwise print when "Background graphics" is on). */
+  html,
+  body {
+    background: #fff !important;
+    background-image: none !important;
+    color-scheme: light !important;
+  }
+
+  /* Hide everything not part of the resume. */
+  .rb-no-print {
+    display: none !important;
+  }
+
+  /* Neutralize the app's flex/scroll containers so the sheet starts at the
+     page top and is never clipped to the viewport. */
+  .rb-root {
+    background: #fff !important;
+    background-image: none !important;
+    min-height: 0 !important;
+    display: block !important;
+  }
+  .rb-main {
+    display: block !important;
+    overflow: visible !important;
+  }
+  .rb-preview-pane {
+    display: block !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  .rb-preview-center {
+    display: block !important;
+    padding: 0 !important;
+  }
+  .resume-scale-wrap {
+    zoom: 1 !important;
+    transform: none !important;
+  }
+
+  /* The sheet itself: full width, no shadow, padding comes from @page. */
+  .resume-print-area {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    color: var(--ink) !important;
+    zoom: 1 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .resume-sheet .editable:hover,
+  .resume-sheet .editable:focus {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}
