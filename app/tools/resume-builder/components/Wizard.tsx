@@ -7,6 +7,8 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ArrowUp,
+  ArrowDown,
   Check,
   AlertCircle,
   Lightbulb,
@@ -428,6 +430,17 @@ function StepProjects({
   const setEdit = (id: string, recipe: (e: ProjEdit) => void) =>
     setEdits((prev) => prev.map((e) => (e.id === id ? (() => { const n = { ...e }; recipe(n); return n; })() : e)));
 
+  // Reorder — the edits order is the order projects land in the resume on apply.
+  const move = (id: string, dir: -1 | 1) =>
+    setEdits((prev) => {
+      const i = prev.findIndex((e) => e.id === id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+
   const apply = () => {
     const included = edits.filter((e) => e.include);
     patch((d) => {
@@ -453,15 +466,37 @@ function StepProjects({
         <p className="text-sm text-muted-foreground italic">No suggestions yet.</p>
       ) : (
         <div className="space-y-3">
-          {edits.map((e) => {
+          {edits.map((e, idx) => {
             const orig = projects.find((p) => p.id === e.id);
             return (
               <div key={e.id} className={`rounded-lg border p-3 space-y-2 ${e.include ? "" : "opacity-60"}`}>
-                <label className="flex items-center gap-2 text-sm font-medium">
-                  <input type="checkbox" checked={e.include} onChange={() => setEdit(e.id, (x) => void (x.include = !x.include))} />
-                  Include
-                  <span className="text-xs font-normal text-muted-foreground">· {e.reason}</span>
-                </label>
+                <div className="flex items-start justify-between gap-2">
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input type="checkbox" checked={e.include} onChange={() => setEdit(e.id, (x) => void (x.include = !x.include))} />
+                    Include
+                    <span className="text-xs font-normal text-muted-foreground">· {e.reason}</span>
+                  </label>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => move(e.id, -1)}
+                      disabled={idx === 0}
+                      aria-label="Move up"
+                      className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => move(e.id, 1)}
+                      disabled={idx === edits.length - 1}
+                      aria-label="Move down"
+                      className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
                 <input
                   className="w-full text-sm font-medium bg-transparent border rounded px-2 py-1"
                   value={e.title}
