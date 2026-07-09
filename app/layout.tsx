@@ -1,13 +1,23 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Archivo, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 
-const inter = Inter({ subsets: ["latin"] });
+// Archivo drives both body and display via its weight axis (Swiss grotesque).
+const archivo = Archivo({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+});
 
 export const metadata: Metadata = {
-  title: "AI Tools Hub - Your Personal AI Assistant Platform",
-  description: "A modern platform for AI-powered tools including resume analysis, Upwork proposal writing, and more. Powered by Google Gemini AI.",
+  title: "AI Tools Hub — An AI Workbench for Freelance Developers",
+  description: "A platform of AI tools for freelance developers: score a résumé against any job description, build one tailored to it, and write or grade the proposals that win the contract. Powered by Google Gemini.",
   keywords: ["AI tools", "resume analyzer", "proposal writer", "Upwork", "AI assistant", "Gemini AI"],
   authors: [{ name: "AI Tools Hub" }],
   creator: "AI Tools Hub",
@@ -41,8 +51,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
+    <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${plexMono.variable}`}>
+      <body className={archivo.className}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
