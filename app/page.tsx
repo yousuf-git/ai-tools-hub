@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, useInView, useReducedMotion } from "framer-motion";
+import { motion, useInView, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import {
   FileText,
   FileEdit,
@@ -10,16 +10,14 @@ import {
   Brain,
   ArrowRight,
   ArrowUpRight,
-  Github,
-  Linkedin,
-  Mail,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 /* ================================================================== *
- *  AI TOOLS HUB — Swiss / International Typographic landing.
+ *  AI FORGE — Swiss / International Typographic landing.
  *  The platform presented as an editorial INDEX: type does the work,
  *  one signal accent, and the tool directory grows by adding a row.
  * ================================================================== */
@@ -184,9 +182,15 @@ function CountUp({ to }: { to: number }) {
 function Wordmark({ className = "" }: { className?: string }) {
   return (
     <Link href="/" className={`group inline-flex items-center gap-2.5 ${className}`}>
-      <span className="h-3.5 w-3.5 shrink-0 bg-primary transition-transform duration-300 group-hover:rotate-45" />
-      <span className="font-display text-[0.95rem] font-extrabold uppercase tracking-tight text-foreground">
-        AI&nbsp;Tools&nbsp;Hub
+      <Image
+        src="/favicon.png"
+        alt=""
+        width={20}
+        height={20}
+        className="h-5 w-5 shrink-0 transition-transform duration-300 group-hover:rotate-12"
+      />
+      <span className="font-mono text-[0.95rem] font-semibold uppercase tracking-tight text-foreground">
+        AI&nbsp;Forge
       </span>
     </Link>
   );
@@ -200,36 +204,17 @@ function Eyebrow({ children }: { children: React.ReactNode }) {
   );
 }
 
-/* Real, honest liveness — the visitor's own local time, ticking. */
-function LiveClock() {
-  const [now, setNow] = useState<Date | null>(null);
-  useEffect(() => {
-    setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  if (!now) return <span className="tabular-nums text-foreground">--:--:--</span>;
-
-  const time = now.toLocaleTimeString([], { hour12: false });
-  const tz =
-    new Intl.DateTimeFormat([], { timeZoneName: "short" })
-      .formatToParts(now)
-      .find((p) => p.type === "timeZoneName")?.value ?? "";
-
-  return (
-    <span className="tabular-nums text-foreground">
-      {time} <span className="text-muted-foreground">{tz}</span>
-    </span>
-  );
-}
-
 /* ================================================================== */
 /*  Page                                                              */
 /* ================================================================== */
 export default function Home() {
   const year = new Date().getFullYear();
   const reduce = useReducedMotion();
+
+  // Footer wordmark parallax — drifts as the footer scrolls through the viewport.
+  const wordmarkRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({ target: wordmarkRef, offset: ["start end", "end start"] });
+  const wordmarkDrift = useTransform(scrollYProgress, [0, 1], ["7%", "-7%"]);
 
   const rise = (delay = 0) =>
     reduce
@@ -526,112 +511,111 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ============ Footer — brand signature + honest liveness ============ */}
-      <footer className="bg-background">
+      {/* ============ Footer — bordered column frame + full-bleed wordmark ============ */}
+      <footer className="overflow-hidden bg-background">
         <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-          {/* live utility strip — real, client-side local time */}
-          <div className="flex flex-col gap-2 border-b border-border py-4 font-mono text-[0.72rem] uppercase tracking-[0.14em] sm:flex-row sm:items-center sm:justify-between">
-            <span className="flex items-center gap-2.5 text-muted-foreground">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
-              Your local time&nbsp;·&nbsp;<LiveClock />
-            </span>
-            <a
-              href="https://github.com/yousuf-git/ai-tools-hub/commits"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              View latest commits ↗
-            </a>
-          </div>
+          
 
-          {/* about + navigation */}
-          <div className="grid gap-10 py-14 md:grid-cols-[1.6fr_1fr_1fr]">
-            <div>
-              <Wordmark />
-              <p className="mt-5 max-w-xs text-sm leading-relaxed text-muted-foreground">
-                A modular hub of Gemini-powered tools for freelance developers —
-                analyze, build, write, and grade from one app. Built to grow.
-              </p>
-              <div className="mt-6 flex items-center gap-2">
+          {/* bracketed column frame — edges broken at corners, L-marker brackets, vertical dividers */}
+          <div className="relative grid divide-y divide-foreground/20 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {/* edges — stop short of the corners to leave a diagonal gap */}
+            <span aria-hidden className="pointer-events-none absolute inset-x-4 top-0 h-px bg-foreground/20" />
+            <span aria-hidden className="pointer-events-none absolute inset-x-4 bottom-0 h-px bg-foreground/20" />
+            <span aria-hidden className="pointer-events-none absolute inset-y-4 left-0 w-px bg-foreground/20" />
+            <span aria-hidden className="pointer-events-none absolute inset-y-4 right-0 w-px bg-foreground/20" />
+            {/* corner markers — cropped L brackets */}
+            <span aria-hidden className="pointer-events-none absolute left-[3px] top-[3px] h-4 w-4 border-l border-t border-foreground/70" />
+            <span aria-hidden className="pointer-events-none absolute right-[3px] top-[3px] h-4 w-4 border-r border-t border-foreground/70" />
+            <span aria-hidden className="pointer-events-none absolute bottom-[3px] left-[3px] h-4 w-4 border-l border-b border-foreground/70" />
+            <span aria-hidden className="pointer-events-none absolute bottom-[3px] right-[3px] h-4 w-4 border-r border-b border-foreground/70" />
+            {/* Contact */}
+            <div className="flex min-h-[240px] flex-col justify-between gap-16 p-6 sm:min-h-[360px] sm:p-10">
+              <h4 className="font-mono text-sm uppercase tracking-[0.18em] text-foreground">Contact</h4>
+              <div className="space-y-2">
+                <a href="mailto:yousuf.work09@gmail.com" className="block text-base text-foreground transition-colors hover:text-primary">
+                  yousuf.work09@gmail.com
+                </a>
+                <a href="mailto:yousuf.work09@gmail.com" className="inline-flex items-center gap-1 text-base text-muted-foreground transition-colors hover:text-foreground">
+                  Get in touch <ArrowUpRight className="h-4 w-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* Connect */}
+            <div className="flex min-h-[240px] flex-col justify-between gap-16 p-6 sm:min-h-[360px] sm:p-10">
+              <h4 className="font-mono text-sm uppercase tracking-[0.18em] text-foreground">Connect</h4>
+              <div className="space-y-2">
                 {[
-                  { icon: Github, href: "https://github.com/yousuf-git", label: "GitHub" },
-                  { icon: Linkedin, href: "https://linkedin.com/in/muhammad-yousuf952", label: "LinkedIn" },
-                  { icon: Mail, href: "mailto:yousuf.work09@gmail.com", label: "Email" },
+                  { t: "GitHub", h: "https://github.com/yousuf-git" },
+                  { t: "LinkedIn", h: "https://linkedin.com/in/muhammad-yousuf952" },
                 ].map((s) => (
                   <a
-                    key={s.label}
-                    href={s.href}
+                    key={s.t}
+                    href={s.h}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="border border-border p-2.5 text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+                    className="flex items-center gap-1 text-base text-foreground transition-colors hover:text-primary"
                   >
-                    <s.icon className="h-4 w-4" />
-                    <span className="sr-only">{s.label}</span>
+                    {s.t} <ArrowUpRight className="h-4 w-4" />
                   </a>
                 ))}
               </div>
             </div>
 
-            <nav aria-label="Footer — tools">
-              <h4 className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-primary">Tools</h4>
-              <ul className="mt-5 space-y-3 text-sm">
+            {/* Explore */}
+            <div className="flex min-h-[240px] flex-col justify-between gap-16 p-6 sm:min-h-[360px] sm:p-10">
+              <h4 className="font-mono text-sm uppercase tracking-[0.18em] text-foreground">Explore</h4>
+              <div className="space-y-2">
                 {tools.map((t) =>
                   t.isExternal ? (
-                    <li key={t.id}>
-                      <a href={t.href} target="_blank" rel="noopener noreferrer" className="text-foreground/80 transition-colors hover:text-primary">
-                        {t.name} ↗
-                      </a>
-                    </li>
+                    <a key={t.id} href={t.href} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-base text-muted-foreground transition-colors hover:text-foreground">
+                      {t.name} <ArrowUpRight className="h-4 w-4 shrink-0" />
+                    </a>
                   ) : (
-                    <li key={t.id}>
-                      <Link href={t.href} className="text-foreground/80 transition-colors hover:text-primary">
-                        {t.name}
-                      </Link>
-                    </li>
+                    <Link key={t.id} href={t.href} className="block text-base text-muted-foreground transition-colors hover:text-foreground">
+                      {t.name}
+                    </Link>
                   )
                 )}
-              </ul>
-            </nav>
-
-            <nav aria-label="Footer — resources">
-              <h4 className="font-mono text-[0.7rem] uppercase tracking-[0.18em] text-primary">Resources</h4>
-              <ul className="mt-5 space-y-3 text-sm">
-                {[
-                  { t: "Repository", h: "https://github.com/yousuf-git/ai-tools-hub" },
-                  { t: "Tools catalog", h: "https://github.com/yousuf-git/ai-tools-hub/blob/main/docs/TOOLS_CATALOG.md" },
-                  { t: "Report a bug", h: "https://github.com/yousuf-git/ai-tools-hub/issues" },
-                  { t: "Get a Gemini key", h: "https://makersuite.google.com/app/apikey" },
-                ].map((r) => (
-                  <li key={r.t}>
-                    <a href={r.h} target="_blank" rel="noopener noreferrer" className="text-foreground/80 transition-colors hover:text-primary">
-                      {r.t} ↗
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
+              </div>
+            </div>
           </div>
+        </div>
 
-          {/* signature wordmark — rises on scroll into view */}
-          <div className="overflow-hidden border-t border-border pt-10">
-            <motion.p
-              initial={reduce ? false : { y: "40%", opacity: 0 }}
-              whileInView={reduce ? undefined : { y: "0%", opacity: 1 }}
-              viewport={{ once: true, amount: 0.4 }}
-              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-              className="select-none whitespace-nowrap font-display text-[15.5vw] font-extrabold uppercase leading-[0.78] tracking-[-0.045em] text-foreground"
+        {/* full-bleed signature wordmark — accent, bleeds off the bottom edge; parallax on scroll */}
+        <div ref={wordmarkRef} className="-mb-[1.2vw] px-5 pt-8 sm:px-8">
+          <motion.div style={reduce ? undefined : { y: wordmarkDrift }}>
+            <svg
+              viewBox="0 0 1000 132"
+              preserveAspectRatio="xMinYMin meet"
+              role="img"
+              aria-label="AI Forge"
+              className="block w-full select-none text-primary"
             >
-              AI Tools Hub
-            </motion.p>
-          </div>
+              <text
+                x="0"
+                y="120"
+                textLength="1000"
+                lengthAdjust="spacingAndGlyphs"
+                fontSize="150"
+                fontWeight="500"
+                letterSpacing="0"
+                fill="currentColor"
+                className="font-mono uppercase"
+              >
+                AI F<tspan fill="none" stroke="currentColor" strokeWidth="2" paintOrder="stroke">O</tspan>RGE
+              </text>
+            </svg>
+          </motion.div>
+        </div>
 
-          {/* legal + colophon */}
+        {/* legal + colophon */}
+        <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
           <div className="flex flex-col items-start justify-between gap-3 border-t border-border py-6 font-mono text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground sm:flex-row sm:items-center">
             <p>
-              © {year} AI Tools Hub — MIT Licensed · Built by{" "}
+              © {year} AI Forge — MIT Licensed · Built by{" "}
               <a
-                href="https://github.com/yousuf-git"
+                href="https://yousuf-dev.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-foreground underline decoration-primary decoration-2 underline-offset-4 hover:opacity-70"
@@ -639,7 +623,7 @@ export default function Home() {
                 M. Yousuf
               </a>
             </p>
-            <p>Set in Archivo &amp; IBM&nbsp;Plex&nbsp;Mono</p>
+            <p>AI Forged for real use</p>
           </div>
         </div>
       </footer>

@@ -16,23 +16,23 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Tools Hub — An AI Workbench for Freelance Developers",
+  title: "AI Forge — An AI Workbench for Freelance Developers",
   description: "A platform of AI tools for freelance developers: score a résumé against any job description, build one tailored to it, and write or grade the proposals that win the contract. Powered by Google Gemini.",
   keywords: ["AI tools", "resume analyzer", "proposal writer", "Upwork", "AI assistant", "Gemini AI"],
-  authors: [{ name: "AI Tools Hub" }],
-  creator: "AI Tools Hub",
+  authors: [{ name: "AI Forge" }],
+  creator: "AI Forge",
   metadataBase: new URL('https://toolshub.yousuf-dev.com/'),
   openGraph: {
     type: 'website',
     locale: 'en_US',
     url: 'https://toolshub.yousuf-dev.com/',
-    title: 'AI Tools Hub - Your Personal AI Assistant Platform',
+    title: 'AI Forge - Your Personal AI Assistant Platform',
     description: 'A modern platform for AI-powered tools including resume analysis, Proposal writing, and more.',
-    siteName: 'AI Tools Hub',
+    siteName: 'AI Forge',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AI Tools Hub - Your Personal AI Assistant Platform',
+    title: 'AI Forge - Your Personal AI Assistant Platform',
     description: 'A modern platform for AI-powered tools including resume analysis, Upwork proposal writing, and more.',
   },
   icons: {
