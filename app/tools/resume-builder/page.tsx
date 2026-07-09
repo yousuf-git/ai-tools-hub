@@ -30,7 +30,14 @@ export default function ResumeBuilderPage() {
   const [zoom, setZoom] = useState(0.62);
   const [tab, setTab] = useState<"profile" | "generate">("generate");
 
-  const apiKeySet = Boolean(process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+  // Key lives server-side only; ask the API whether it's configured.
+  const [apiKeySet, setApiKeySet] = useState(false);
+  useEffect(() => {
+    fetch("/api/resume")
+      .then((r) => r.json())
+      .then((d) => setApiKeySet(Boolean(d.configured)))
+      .catch(() => setApiKeySet(false));
+  }, []);
 
   // ---- Load from IndexedDB (seed on first run) ----
   useEffect(() => {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { ResumeTask } from "@/lib/resume/types";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 // Fallback chain — preferred model first, then higher-rate-limit fallbacks.
 const FALLBACK_CHAIN = [
@@ -137,12 +137,17 @@ function isRetryable(error: any): boolean {
   );
 }
 
+// Reports whether the server has a Gemini key configured — never exposes the key.
+export async function GET() {
+  return NextResponse.json({ configured: Boolean(process.env.GEMINI_API_KEY) });
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Gemini API key not configured. Add NEXT_PUBLIC_GEMINI_API_KEY to .env." },
+        { error: "Gemini API key not configured. Add GEMINI_API_KEY to .env." },
         { status: 500 }
       );
     }

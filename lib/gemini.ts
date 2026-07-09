@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Model configuration with rate limits
 export const GEMINI_MODELS = [
@@ -134,9 +134,9 @@ export async function analyzeResumeWithGemini(
   }
 
   // Check if API key is available
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === '') {
-    throw new Error('Gemini API key is not configured. Please add NEXT_PUBLIC_GEMINI_API_KEY to your .env file.');
+    throw new Error('Gemini API key is not configured. Please add GEMINI_API_KEY to your .env file.');
   }
 
   let lastError: Error | null = null;
