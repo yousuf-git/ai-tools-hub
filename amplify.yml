@@ -8,7 +8,7 @@ frontend:
       commands:
         # Amplify console env vars are build-time only. Write the server key into
         # .env.production so Next.js loads it in the SSR/API-route runtime.
-        - env | grep -e GEMINI_API_KEY >> .env.production
+        - env | grep -e GEMINI_API_KEY -e APPWRITE_API_KEY >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

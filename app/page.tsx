@@ -251,6 +251,12 @@ export default function Home() {
             >
               Open the tools →
             </a>
+            <Link
+              href="/account"
+              className="font-mono text-[0.72rem] uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Sign in
+            </Link>
             <ThemeToggle />
           </div>
         </div>
