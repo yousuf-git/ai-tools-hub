@@ -11,16 +11,20 @@ import { FormMessage } from "@/components/auth/form-message";
 import { GoogleButton } from "@/components/auth/google-button";
 import { OrDivider } from "@/components/auth/auth-card";
 import { signIn } from "@/lib/appwrite/auth";
+import type { FormAction } from "@/lib/appwrite/utils";
+
+type FormError = { message: string; action?: FormAction };
 
 export function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get("redirect") || "/account";
+  const prefillEmail = params.get("email") ?? "";
 
   const [pending, setPending] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(
+  const [error, setError] = React.useState<FormError | null>(
     params.get("error") === "oauth"
-      ? "Google sign-in was cancelled or failed. Please try again."
+      ? { message: "Google sign-in was cancelled or failed. Please try again." }
       : null
   );
 
@@ -40,7 +44,7 @@ export function LoginForm() {
       router.replace(redirectTo);
       router.refresh();
     } else {
-      setError(result.error);
+      setError({ message: result.error, action: result.action });
       setPending(false);
     }
   }
@@ -51,7 +55,11 @@ export function LoginForm() {
       <OrDivider />
 
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        {error && <FormMessage type="error">{error}</FormMessage>}
+        {error && (
+          <FormMessage type="error" action={error.action}>
+            {error.message}
+          </FormMessage>
+        )}
 
         <Field
           label="Email"
@@ -59,6 +67,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           placeholder="you@example.com"
+          defaultValue={prefillEmail}
           required
         />
         <div className="space-y-1.5">

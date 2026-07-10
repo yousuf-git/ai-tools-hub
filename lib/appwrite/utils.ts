@@ -18,33 +18,46 @@ export async function getBaseUrl(): Promise<string> {
   return `${proto}://${host}`;
 }
 
+/** A one-tap next step attached to an error, e.g. "Sign in instead". */
+export type FormAction = { label: string; href: string };
+
 export type ActionResult =
   | { success: true; message?: string }
-  | { success: false; error: string };
+  | { success: false; error: string; action?: FormAction };
 
-/** Maps Appwrite exceptions to safe, user-facing messages. */
+/** Maps Appwrite exceptions to safe, user-facing messages with a helpful next step. */
 export function toActionError(err: unknown): ActionResult {
   if (err instanceof AppwriteException) {
     switch (err.type) {
       case "user_already_exists":
-        return { success: false, error: "An account with this email already exists." };
+      case "user_target_already_exists":
+        return {
+          success: false,
+          error: "An account with this email already exists.",
+          action: { label: "Sign in instead", href: "/login" },
+        };
       case "user_invalid_credentials":
-        return { success: false, error: "Incorrect email or password." };
+        return {
+          success: false,
+          error: "Incorrect email or password.",
+          action: { label: "Reset your password", href: "/forgot-password" },
+        };
       case "user_blocked":
-        return { success: false, error: "This account has been blocked." };
+        return { success: false, error: "This account has been blocked. Contact support if you think this is a mistake." };
       case "user_password_mismatch":
         return { success: false, error: "Your current password is incorrect." };
       case "password_recently_used":
       case "password_personal_data":
         return { success: false, error: "Please choose a stronger, unused password." };
-      case "user_target_already_exists":
-        return { success: false, error: "This email is already in use." };
       case "general_rate_limit_exceeded":
         return { success: false, error: "Too many attempts. Please wait a minute and try again." };
       default:
-        return { success: false, error: err.message };
+        // Unmapped Appwrite errors are technical — log the detail, show a friendly line.
+        console.error(`Unmapped Appwrite error [${err.type}]:`, err.message);
+        return { success: false, error: "Something went wrong on our end. Please try again in a moment." };
     }
   }
+  console.error("Unexpected auth error:", err);
   return { success: false, error: "Something went wrong. Please try again." };
 }
 
