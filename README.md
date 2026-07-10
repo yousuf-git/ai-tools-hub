@@ -1,6 +1,6 @@
 <div align="center">
 
-  <img src="public/favicon.png" alt="AI Forge logo" width="96" height="96" />
+  <img src="public/logo.png" alt="AI Forge logo" width="96" height="96" />
 
   <h1>AI Forge</h1>
 
