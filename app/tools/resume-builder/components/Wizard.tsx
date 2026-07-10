@@ -743,13 +743,16 @@ function StepExperience({
 
   const apply = () => {
     patch((d) => {
-      d.experience.forEach((job) => {
-        // Only jobs the AI returned AND that are still included get rewritten;
-        // excluded jobs keep their current bullets.
-        if (edits[job.id] !== undefined && (include[job.id] ?? true)) {
-          job.bullets = edits[job.id].split("\n").map((x) => x.trim()).filter(Boolean);
-        }
-      });
+      // A job was reviewed this round iff it has an edits entry (seeded from the
+      // AI response). Reviewed + unticked → drop it from the resume. Reviewed +
+      // ticked → apply the rewrite. Jobs never sent stay untouched.
+      d.experience = d.experience
+        .filter((job) => edits[job.id] === undefined || (include[job.id] ?? true))
+        .map((job) =>
+          edits[job.id] !== undefined
+            ? { ...job, bullets: edits[job.id].split("\n").map((x) => x.trim()).filter(Boolean) }
+            : job
+        );
     });
   };
 
@@ -812,8 +815,8 @@ function StepExperience({
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Review &amp; apply.</span> Untick a job to keep its current
-              bullets, edit the rewrite, then apply. Only ticked jobs are changed. Or reset to start over.
+              <span className="font-medium text-foreground">Review &amp; apply.</span> Untick a job to drop it from the
+              resume, edit the rewrite, then apply. Or reset to start over.
             </p>
             <Button variant="outline" size="sm" className="shrink-0" onClick={onReset}>
               <RotateCcw className="w-4 h-4 mr-1.5" /> Reset
