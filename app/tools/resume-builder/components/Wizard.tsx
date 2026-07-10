@@ -416,16 +416,23 @@ function StepProjects({
   useEffect(() => {
     if (!res) return;
     setEdits(
-      res.projects.map((p) => ({
-        id: p.id,
-        include: p.include,
-        title: p.refactored.title,
-        stack: p.refactored.stack.join(", "),
-        bullets: p.refactored.bullets.join("\n"),
-        reason: p.reason,
-      }))
+      // The model sometimes omits `refactored` (or fields within it) for projects
+      // it marks as not-included — fall back to the original project so the map
+      // never dereferences undefined.
+      res.projects.map((p) => {
+        const orig = projects.find((x) => x.id === p.id);
+        const r = p.refactored ?? {};
+        return {
+          id: p.id,
+          include: p.include,
+          title: r.title ?? orig?.title ?? "",
+          stack: (r.stack ?? orig?.stack ?? []).join(", "),
+          bullets: (r.bullets ?? orig?.bullets ?? []).join("\n"),
+          reason: p.reason,
+        };
+      })
     );
-  }, [res]);
+  }, [res, projects]);
 
   const setEdit = (id: string, recipe: (e: ProjEdit) => void) =>
     setEdits((prev) => prev.map((e) => (e.id === id ? (() => { const n = { ...e }; recipe(n); return n; })() : e)));

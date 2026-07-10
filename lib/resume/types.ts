@@ -119,7 +119,8 @@ export interface ProjectsResult {
     id: string;
     include: boolean;
     reason: string;
-    refactored: { title: string; stack: string[]; bullets: string[] };
+    // Optional: the model may omit it (or fields within it) for excluded projects.
+    refactored?: { title?: string; stack?: string[]; bullets?: string[] };
   }[];
 }
 
