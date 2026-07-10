@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { GEMINI_MODELS } from "@/lib/gemini";
+import { parseJsonResponse } from "@/lib/fetch-json";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface ProposalVersion {
@@ -215,12 +216,7 @@ export default function UpworkProposalWriter() {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate proposal');
-      }
-
-      const result = await response.json();
+      const result = await parseJsonResponse<{ proposal: string }>(response);
 
       // Add new version
       const newVersion: ProposalVersion = {
@@ -293,13 +289,8 @@ export default function UpworkProposalWriter() {
         body: JSON.stringify(requestBody),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate revised proposal');
-      }
+      const result = await parseJsonResponse<{ proposal: string }>(response);
 
-      const result = await response.json();
-      
       // Add new version with improvisation notes
       const newVersion: ProposalVersion = {
         id: versions.length + 1,

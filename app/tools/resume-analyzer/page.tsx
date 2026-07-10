@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { extractTextFromPDF, validatePDFFile } from "@/lib/pdf-parser";
 import { type AnalysisResult, GEMINI_MODELS } from "@/lib/gemini";
+import { parseJsonResponse } from "@/lib/fetch-json";
 
 // Rate limiting state management
 interface RateLimit {
@@ -176,12 +177,7 @@ export default function ResumeAnalyzer() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to analyze resume');
-      }
-
-      const result = await response.json();
+      const result = await parseJsonResponse<AnalysisResult>(response);
       setAnalysisResult(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred during analysis.");

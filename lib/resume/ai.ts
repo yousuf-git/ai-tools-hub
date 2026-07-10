@@ -1,5 +1,6 @@
 // Client-side helpers that call /api/resume, plus a per-model sliding-window rate limiter.
 import { GEMINI_MODELS } from "@/lib/gemini";
+import { parseJsonResponse } from "@/lib/fetch-json";
 import type {
   Profile,
   ResumeProject,
@@ -22,9 +23,7 @@ async function callResumeApi<T>(task: ResumeTask, payload: unknown, model: strin
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ task, payload, model }),
   });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
-  return json as ApiResponse<T>;
+  return parseJsonResponse<ApiResponse<T>>(res);
 }
 
 export function generateSummarySkills(profile: Profile, jobDescription: string, model: string) {

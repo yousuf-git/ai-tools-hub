@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GEMINI_MODELS } from "@/lib/gemini";
+import { parseJsonResponse } from "@/lib/fetch-json";
 
 interface EvaluationResult {
   scores: {
@@ -88,12 +89,7 @@ export default function UpworkProposalExaminer() {
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to examine proposal');
-      }
-
-      const data = await response.json();
+      const data = await parseJsonResponse<{ evaluation: EvaluationResult }>(response);
       setResult(data.evaluation);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while examining the proposal.");
