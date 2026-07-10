@@ -1,12 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Plus, Trash2, Download, Upload, Save, FolderGit2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Trash2, Download, Upload, Save, FolderGit2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Profile, ResumeProject } from "@/lib/resume/types";
+import SkillsBadgeBoard from "./SkillsBadgeBoard";
 
 const uid = () =>
   typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
@@ -23,6 +24,10 @@ interface Props {
   onImportProjects: (ps: ResumeProject[]) => void;
 }
 
+// Sections that use the buffered save/reset flow (Projects has its own per-card save).
+type SectionKey = "basics" | "summary" | "skills" | "experience" | "certifications" | "education";
+const SECTION_KEYS: SectionKey[] = ["basics", "summary", "skills", "experience", "certifications", "education"];
+
 export default function ProfileManager({
   profile,
   onProfileChange,
@@ -33,11 +38,35 @@ export default function ProfileManager({
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Edits buffer in a local draft; each section commits (or reverts) on its own.
+  const [draft, setDraft] = useState<Profile>(profile);
+  // When `profile` changes externally (a save elsewhere, an import), adopt it —
+  // but preserve any section the user is still editing here.
+  const prevProfile = useRef(profile);
+  useEffect(() => {
+    const prev = prevProfile.current;
+    prevProfile.current = profile;
+    if (prev === profile) return;
+    setDraft((d) => {
+      const next = structuredClone(profile);
+      SECTION_KEYS.forEach((k) => {
+        if (JSON.stringify(d[k]) !== JSON.stringify(prev[k])) next[k] = structuredClone(d[k]) as never;
+      });
+      return next;
+    });
+  }, [profile]);
+
   const update = (recipe: (p: Profile) => void) => {
-    const next: Profile = structuredClone(profile);
-    recipe(next);
-    onProfileChange(next);
+    setDraft((prev) => {
+      const next: Profile = structuredClone(prev);
+      recipe(next);
+      return next;
+    });
   };
+
+  const isDirty = (key: SectionKey) => JSON.stringify(draft[key]) !== JSON.stringify(profile[key]);
+  const saveSection = (key: SectionKey) => onProfileChange({ ...profile, [key]: structuredClone(draft[key]) });
+  const resetSection = (key: SectionKey) => setDraft((prev) => ({ ...prev, [key]: structuredClone(profile[key]) }));
 
   // ---- profile JSON import/export ----
   const exportProfile = () => {
@@ -67,6 +96,12 @@ export default function ProfileManager({
     e.target.value = "";
   };
 
+  const sectionProps = (key: SectionKey) => ({
+    dirty: isDirty(key),
+    onSave: () => saveSection(key),
+    onReset: () => resetSection(key),
+  });
+
   return (
     <div className="space-y-8">
       {/* Import / Export */}
@@ -81,7 +116,7 @@ export default function ProfileManager({
       </div>
 
       {/* ===== Basics ===== */}
-      <Section title="Basics">
+      <Section title="Basics" {...sectionProps("basics")}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(
             [
@@ -97,58 +132,36 @@ export default function ProfileManager({
           ).map(([key, label]) => (
             <div key={key} className="space-y-1">
               <Label className="text-xs">{label}</Label>
-              <Input
-                value={profile.basics[key]}
-                onChange={(e) => update((p) => void (p.basics[key] = e.target.value))}
-              />
+              <Input value={draft.basics[key]} onChange={(e) => update((p) => void (p.basics[key] = e.target.value))} />
             </div>
           ))}
         </div>
       </Section>
 
       {/* ===== Summary ===== */}
-      <Section title="Summary">
+      <Section title="Summary" {...sectionProps("summary")}>
         <Textarea
           rows={4}
-          value={profile.summary}
+          value={draft.summary}
           onChange={(e) => update((p) => void (p.summary = e.target.value))}
           placeholder="Generic professional summary…"
         />
       </Section>
 
       {/* ===== Skills ===== */}
-      <Section
-        title="Skills"
-        action={
-          <AddButton onClick={() => update((p) => p.skills.push({ category: "", items: [] }))} label="Add category" />
-        }
-      >
-        <div className="space-y-3">
-          {profile.skills.map((row, i) => (
-            <div key={i} className="flex gap-2 items-start">
-              <Input
-                className="w-40 shrink-0"
-                placeholder="Category"
-                value={row.category}
-                onChange={(e) => update((p) => void (p.skills[i].category = e.target.value))}
-              />
-              <Textarea
-                rows={1}
-                className="flex-1 min-h-[40px]"
-                placeholder="comma, separated, skills"
-                value={row.items.join(", ")}
-                onChange={(e) => update((p) => void (p.skills[i].items = csvToArr(e.target.value)))}
-              />
-              <RemoveButton onClick={() => update((p) => p.skills.splice(i, 1))} />
-            </div>
-          ))}
-          {profile.skills.length === 0 && <Empty>No skill categories yet.</Empty>}
-        </div>
+      <Section title="Skills" {...sectionProps("skills")}>
+        <p className="mb-2 text-xs text-muted-foreground">
+          Add skills as badges, drag to reorder, drop onto another category to move, or drag the grip to reorder
+          categories.
+        </p>
+        <SkillsBadgeBoard mode="edit" categories={draft.skills} onChange={(next) => update((p) => void (p.skills = next))} />
+        {draft.skills.length === 0 && <p className="mt-2 text-sm italic text-muted-foreground">No skill categories yet — add one below.</p>}
       </Section>
 
       {/* ===== Experience ===== */}
       <Section
         title="Experience"
+        {...sectionProps("experience")}
         action={
           <AddButton
             onClick={() =>
@@ -161,7 +174,7 @@ export default function ProfileManager({
         }
       >
         <div className="space-y-4">
-          {profile.experience.map((exp, i) => (
+          {draft.experience.map((exp, i) => (
             <div key={exp.id} className="rounded-lg border p-3 space-y-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Input placeholder="Title" value={exp.title} onChange={(e) => update((p) => void (p.experience[i].title = e.target.value))} />
@@ -183,7 +196,7 @@ export default function ProfileManager({
               <RemoveButton label="Remove job" onClick={() => update((p) => p.experience.splice(i, 1))} />
             </div>
           ))}
-          {profile.experience.length === 0 && <Empty>No experience entries yet.</Empty>}
+          {draft.experience.length === 0 && <Empty>No experience entries yet.</Empty>}
         </div>
       </Section>
 
@@ -218,6 +231,7 @@ export default function ProfileManager({
       {/* ===== Certifications ===== */}
       <Section
         title="Certifications"
+        {...sectionProps("certifications")}
         action={
           <AddButton
             onClick={() => update((p) => p.certifications.push({ id: uid(), name: "", issuer: "", year: "" }))}
@@ -226,7 +240,7 @@ export default function ProfileManager({
         }
       >
         <div className="space-y-2">
-          {profile.certifications.map((c, i) => (
+          {draft.certifications.map((c, i) => (
             <div key={c.id} className="flex gap-2">
               <Input className="flex-1" placeholder="Name" value={c.name} onChange={(e) => update((p) => void (p.certifications[i].name = e.target.value))} />
               <Input className="w-40" placeholder="Issuer" value={c.issuer} onChange={(e) => update((p) => void (p.certifications[i].issuer = e.target.value))} />
@@ -234,13 +248,14 @@ export default function ProfileManager({
               <RemoveButton onClick={() => update((p) => p.certifications.splice(i, 1))} />
             </div>
           ))}
-          {profile.certifications.length === 0 && <Empty>No certifications yet.</Empty>}
+          {draft.certifications.length === 0 && <Empty>No certifications yet.</Empty>}
         </div>
       </Section>
 
       {/* ===== Education ===== */}
       <Section
         title="Education"
+        {...sectionProps("education")}
         action={
           <AddButton
             onClick={() => update((p) => p.education.push({ id: uid(), degree: "", institution: "", detail: "", start: "", end: "" }))}
@@ -249,7 +264,7 @@ export default function ProfileManager({
         }
       >
         <div className="space-y-4">
-          {profile.education.map((e, i) => (
+          {draft.education.map((e, i) => (
             <div key={e.id} className="rounded-lg border p-3 space-y-2">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <Input placeholder="Degree" value={e.degree} onChange={(ev) => update((p) => void (p.education[i].degree = ev.target.value))} />
@@ -263,7 +278,7 @@ export default function ProfileManager({
               <RemoveButton label="Remove" onClick={() => update((p) => p.education.splice(i, 1))} />
             </div>
           ))}
-          {profile.education.length === 0 && <Empty>No education entries yet.</Empty>}
+          {draft.education.length === 0 && <Empty>No education entries yet.</Empty>}
         </div>
       </Section>
     </div>
@@ -324,12 +339,41 @@ function ProjectCard({
 }
 
 // ---- small presentational helpers ----
-function Section({ title, action, children }: { title: React.ReactNode; action?: React.ReactNode; children: React.ReactNode }) {
+function Section({
+  title,
+  action,
+  dirty,
+  onSave,
+  onReset,
+  children,
+}: {
+  title: React.ReactNode;
+  action?: React.ReactNode;
+  dirty?: boolean;
+  onSave?: () => void;
+  onReset?: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
-        {action}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          {title}
+          {dirty && <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium normal-case text-amber-600 dark:text-amber-400">Unsaved</span>}
+        </h3>
+        <div className="flex items-center gap-1">
+          {action}
+          {dirty && onReset && (
+            <Button variant="ghost" size="sm" onClick={onReset} title="Discard changes to this section">
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+          )}
+          {dirty && onSave && (
+            <Button size="sm" onClick={onSave}>
+              <Save className="w-4 h-4 mr-1.5" /> Save
+            </Button>
+          )}
+        </div>
       </div>
       {children}
     </div>
