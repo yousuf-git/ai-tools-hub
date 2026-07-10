@@ -4,6 +4,7 @@ import { parseJsonResponse } from "@/lib/fetch-json";
 import type {
   Profile,
   ResumeProject,
+  Experience,
   ResumeTask,
   SummarySkillsResult,
   ProjectsResult,
@@ -56,12 +57,12 @@ export function generateProjects(projects: ResumeProject[], jobDescription: stri
   );
 }
 
-export function generateExperience(profile: Profile, jobDescription: string, model: string) {
+export function generateExperience(experience: Experience[], jobDescription: string, model: string) {
   return callResumeApi<ExperienceResult>(
     "experience",
     {
       jobDescription,
-      experience: profile.experience.map((e) => ({
+      experience: experience.map((e) => ({
         id: e.id,
         title: e.title,
         company: e.company,

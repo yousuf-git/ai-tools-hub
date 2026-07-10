@@ -10,6 +10,8 @@ import {
   ArrowUp,
   ArrowDown,
   Check,
+  Save,
+  RotateCcw,
   AlertCircle,
   Lightbulb,
 } from "lucide-react";
@@ -19,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type {
   Profile,
   ResumeProject,
+  Experience,
   ResumeDraft,
   WizardState,
   SkillCategory,
@@ -32,6 +35,7 @@ import {
   recordCall,
 } from "@/lib/resume/ai";
 import type { Patch } from "./ResumePreview";
+import SkillsBadgeBoard from "./SkillsBadgeBoard";
 
 const STEPS = ["Job Description", "Summary & Skills", "Projects", "Experience", "Certifications", "Review"];
 
@@ -148,7 +152,22 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
             busy={busy("projects")}
             aiDisabled={aiDisabled}
             cooldown={cooldown}
-            onRun={() => runCall("projects", () => generateProjects(projects, wizard.jobDescription, model))}
+            onRun={(selected) => runCall("projects", () => generateProjects(selected, wizard.jobDescription, model))}
+            onReset={() => {
+              // Revert the preview's projects to the original saved list and drop
+              // the suggestions so the step returns to the selection view.
+              patch((d) => {
+                d.projects = projects.map((p) => ({
+                  id: p.id,
+                  title: p.title,
+                  liveUrl: p.liveUrl,
+                  codeUrl: p.codeUrl,
+                  stack: [...p.stack],
+                  bullets: [...p.bullets],
+                }));
+              });
+              updateWizard((w) => void (w.raw.projects = null));
+            }}
           />
         )}
         {step === 3 && (
@@ -159,7 +178,15 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
             busy={busy("experience")}
             aiDisabled={aiDisabled}
             cooldown={cooldown}
-            onRun={() => runCall("experience", () => generateExperience(profile, wizard.jobDescription, model))}
+            onRun={(selected) => runCall("experience", () => generateExperience(selected, wizard.jobDescription, model))}
+            onReset={() => {
+              // Revert the preview's experience bullets to the profile originals
+              // and drop the suggestions so the step returns to the selection view.
+              patch((d) => {
+                d.experience = profile.experience.map((e) => ({ ...e, bullets: [...e.bullets] }));
+              });
+              updateWizard((w) => void (w.raw.experience = null));
+            }}
           />
         )}
         {step === 4 && (
@@ -196,6 +223,46 @@ function AiButton({ busy, disabled, cooldown, onClick, label }: { busy: boolean;
       {busy ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Sparkles className="w-4 h-4 mr-1.5" />}
       {cooldown > 0 ? `Available in ${cooldown}s` : busy ? "Thinking…" : label}
     </Button>
+  );
+}
+
+// Collapsed selection row: checkbox + title, original bullets hidden in a
+// closed disclosure. Used to pick which items go to the AI before a call.
+function SelectRow({
+  checked,
+  onToggle,
+  title,
+  subtitle,
+  bullets,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  title: string;
+  subtitle?: string;
+  bullets: string[];
+}) {
+  return (
+    <div className={`rounded-md border transition-opacity ${checked ? "" : "opacity-55"}`}>
+      <div className="flex items-center gap-2 p-2">
+        <input type="checkbox" className="shrink-0" checked={checked} onChange={onToggle} aria-label={`Send ${title} to AI`} />
+        <details className="group flex-1 min-w-0">
+          <summary className="flex cursor-pointer list-none items-center gap-1 text-sm">
+            <ChevronRight className="w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+            <span className="truncate font-medium">{title}</span>
+            {subtitle && <span className="truncate text-xs font-normal text-muted-foreground">· {subtitle}</span>}
+          </summary>
+          {bullets.length > 0 ? (
+            <ul className="ml-5 mt-1 list-disc space-y-0.5 text-xs text-muted-foreground">
+              {bullets.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="ml-5 mt-1 text-xs italic text-muted-foreground">No bullets yet.</p>
+          )}
+        </details>
+      </div>
+    </div>
   );
 }
 
@@ -242,61 +309,80 @@ function StepSummarySkills({
 }) {
   const res = wizard.raw.summarySkills;
   const [summary, setSummary] = useState("");
+  // Selection is keyed by skill label so it survives a cross-category drag.
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [addChecked, setAddChecked] = useState<Set<string>>(new Set());
-  const [addSave, setAddSave] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  // Local, reorderable working copy of the profile's skills (seeded once).
+  const [cats, setCats] = useState<SkillCategory[]>([]);
+  const seeded = useRef(false);
 
   const skillKey = (c: string, i: string) => `${c}|||${i}`;
 
-  // Seed local editing state when a fresh AI response arrives.
+  useEffect(() => {
+    if (!seeded.current && profile.skills.length) {
+      setCats(profile.skills.map((c) => ({ category: c.category, items: [...c.items] })));
+      seeded.current = true;
+    }
+  }, [profile.skills]);
+
+  // Seed summary + selection when a fresh AI response arrives.
   useEffect(() => {
     if (!res) return;
     setSummary(res.summary || "");
-    setChecked(new Set(res.selectedSkills.map((s) => skillKey(s.category, s.item))));
+    setChecked(new Set(res.selectedSkills.map((s) => s.item)));
     setAddChecked(new Set());
-    setAddSave(new Set());
   }, [res]);
 
-  const toggle = (set: Set<string>, key: string, setter: (s: Set<string>) => void) => {
-    const next = new Set(set);
-    next.has(key) ? next.delete(key) : next.add(key);
-    setter(next);
+  const toggleChecked = (item: string) =>
+    setChecked((prev) => {
+      const n = new Set(prev);
+      n.has(item) ? n.delete(item) : n.add(item);
+      return n;
+    });
+  const toggleAdd = (key: string) =>
+    setAddChecked((prev) => {
+      const n = new Set(prev);
+      n.has(key) ? n.delete(key) : n.add(key);
+      return n;
+    });
+
+  // Persist a suggested addition into the profile now (icon flips to a tick).
+  const saveAddition = (a: { category: string; item: string }) => {
+    const key = skillKey(a.category, a.item);
+    if (saved.has(key)) return;
+    const p: Profile = structuredClone(profile);
+    let row = p.skills.find((s) => s.category === a.category);
+    if (!row) {
+      row = { category: a.category, items: [] };
+      p.skills.push(row);
+    }
+    if (!row.items.includes(a.item)) row.items.push(a.item);
+    onSaveProfile(p);
+    setSaved((prev) => new Set(prev).add(key));
   };
 
   const apply = () => {
-    // Rebuild draft.skills from checked profile skills + checked suggested additions.
-    const map = new Map<string, string[]>();
-    profile.skills.forEach((row) => {
-      const kept = row.items.filter((it) => checked.has(skillKey(row.category, it)));
-      if (kept.length) map.set(row.category, kept);
+    // Build draft.skills from the arranged categories, keeping only selected
+    // skills, then fold in any checked suggested additions.
+    const newSkills: SkillCategory[] = [];
+    cats.forEach((row) => {
+      const kept = row.items.filter((it) => checked.has(it));
+      if (kept.length) newSkills.push({ category: row.category, items: kept });
     });
     (res?.suggestedAdditions || []).forEach((a) => {
-      if (addChecked.has(skillKey(a.category, a.item))) {
-        const arr = map.get(a.category) || [];
-        if (!arr.includes(a.item)) arr.push(a.item);
-        map.set(a.category, arr);
+      if (!addChecked.has(skillKey(a.category, a.item))) return;
+      let row = newSkills.find((s) => s.category === a.category);
+      if (!row) {
+        row = { category: a.category, items: [] };
+        newSkills.push(row);
       }
+      if (!row.items.includes(a.item)) row.items.push(a.item);
     });
-    const newSkills: SkillCategory[] = Array.from(map.entries()).map(([category, items]) => ({ category, items }));
     patch((d) => {
       d.summary = summary;
       d.skills = newSkills;
     });
-
-    // "Also save to profile" additions.
-    const toSave = (res?.suggestedAdditions || []).filter((a) => addSave.has(skillKey(a.category, a.item)));
-    if (toSave.length) {
-      const p: Profile = structuredClone(profile);
-      toSave.forEach((a) => {
-        let row = p.skills.find((s) => s.category === a.category);
-        if (!row) {
-          row = { category: a.category, items: [] };
-          p.skills.push(row);
-        }
-        if (!row.items.includes(a.item)) row.items.push(a.item);
-      });
-      onSaveProfile(p);
-    }
   };
 
   return (
@@ -322,51 +408,49 @@ function StepSummarySkills({
 
           <div>
             <Label className="text-xs">From your profile (AI pre-checked the relevant ones)</Label>
-            <div className="mt-2 space-y-2">
-              {profile.skills.map((row) => (
-                <div key={row.category}>
-                  <p className="text-xs font-medium text-muted-foreground">{row.category}</p>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {row.items.map((it) => {
-                      const key = skillKey(row.category, it);
-                      const on = checked.has(key);
-                      return (
-                        <button
-                          key={key}
-                          onClick={() => toggle(checked, key, setChecked)}
-                          className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                            on ? "bg-primary text-primary-foreground border-primary" : "bg-transparent border-border text-muted-foreground"
-                          }`}
-                        >
-                          {on && <Check className="w-3 h-3 inline mr-0.5" />}
-                          {it}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
+              Tap a skill to include or exclude it. Drag to reorder, drop onto another category to move it, or drag the
+              grip to reorder categories. This arrangement is what lands on your resume.
+            </p>
+            <SkillsBadgeBoard
+              mode="select"
+              categories={cats}
+              onChange={setCats}
+              isSelected={(_c, i) => checked.has(i)}
+              onToggle={(_c, i) => toggleChecked(i)}
+            />
           </div>
 
           {res.suggestedAdditions.length > 0 && (
             <div>
               <Label className="text-xs">Suggested additions (not in your profile)</Label>
-              <div className="mt-2 space-y-2">
+              <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
+                Check to include on this resume. Click save to also keep it in your profile for next time.
+              </p>
+              <div className="space-y-2">
                 {res.suggestedAdditions.map((a) => {
                   const key = skillKey(a.category, a.item);
+                  const isSaved = saved.has(key);
                   return (
                     <div key={key} className="rounded-md border p-2 text-xs">
                       <div className="flex items-center gap-2">
-                        <input type="checkbox" checked={addChecked.has(key)} onChange={() => toggle(addChecked, key, setAddChecked)} />
+                        <input type="checkbox" checked={addChecked.has(key)} onChange={() => toggleAdd(key)} />
                         <span className="font-medium">{a.item}</span>
                         <span className="text-muted-foreground">· {a.category}</span>
+                        <button
+                          type="button"
+                          onClick={() => saveAddition(a)}
+                          disabled={isSaved}
+                          title={isSaved ? "Saved to your profile" : "Save to your profile"}
+                          className={`ml-auto inline-flex items-center gap-1 ${
+                            isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {isSaved ? <Check className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                          {isSaved ? "Saved" : "Save"}
+                        </button>
                       </div>
-                      <p className="text-muted-foreground mt-1 ml-6">{a.reason}</p>
-                      <label className="flex items-center gap-1.5 mt-1 ml-6 text-muted-foreground">
-                        <input type="checkbox" checked={addSave.has(key)} onChange={() => toggle(addSave, key, setAddSave)} />
-                        also save to profile
-                      </label>
+                      <p className="mt-1 ml-6 text-muted-foreground">{a.reason}</p>
                     </div>
                   );
                 })}
@@ -401,6 +485,7 @@ function StepProjects({
   aiDisabled,
   cooldown,
   onRun,
+  onReset,
 }: {
   projects: ResumeProject[];
   patch: Patch;
@@ -408,10 +493,20 @@ function StepProjects({
   busy: boolean;
   aiDisabled: boolean;
   cooldown: number;
-  onRun: () => void;
+  onRun: (selected: ResumeProject[]) => void;
+  onReset: () => void;
 }) {
   const res = wizard.raw.projects;
   const [edits, setEdits] = useState<ProjEdit[]>([]);
+  // Which saved projects get sent to the AI (defaults to all once loaded).
+  const [send, setSend] = useState<Set<string>>(new Set());
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!seeded.current && projects.length) {
+      setSend(new Set(projects.map((p) => p.id)));
+      seeded.current = true;
+    }
+  }, [projects]);
 
   useEffect(() => {
     if (!res) return;
@@ -462,17 +557,76 @@ function StepProjects({
     });
   };
 
+  const toggleSend = (id: string) =>
+    setSend((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const selected = projects.filter((p) => send.has(p.id));
+
+  if (projects.length === 0) {
+    return <p className="text-sm text-muted-foreground italic">No saved projects yet — add some in My Profile.</p>;
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">AI picks relevant projects and refactors them toward the JD.</p>
-        <AiButton busy={busy} disabled={aiDisabled} cooldown={cooldown} onClick={onRun} label="Get suggestions" />
-      </div>
-
       {!res ? (
-        <p className="text-sm text-muted-foreground italic">No suggestions yet.</p>
+        <>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Pick projects to send.</span> Only checked projects (with
+            their stack + bullets) are sent. The AI keeps the most relevant and rewrites them toward the job.
+          </p>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => setSend(new Set(selected.length === projects.length ? [] : projects.map((p) => p.id)))}
+              >
+                {selected.length === projects.length ? "Clear all" : "Select all"}
+              </button>
+              <span>
+                · {selected.length} of {projects.length} selected
+              </span>
+            </div>
+            <AiButton
+              busy={busy}
+              disabled={aiDisabled || selected.length === 0}
+              cooldown={cooldown}
+              onClick={() => onRun(selected)}
+              label={`Get suggestions (${selected.length})`}
+            />
+          </div>
+          {selected.length === 0 && (
+            <p className="text-xs text-destructive">Select at least one project to get suggestions.</p>
+          )}
+
+          <div className="space-y-1.5">
+            {projects.map((p) => (
+              <SelectRow
+                key={p.id}
+                checked={send.has(p.id)}
+                onToggle={() => toggleSend(p.id)}
+                title={p.title}
+                subtitle={p.stack.join(" · ")}
+                bullets={p.bullets}
+              />
+            ))}
+          </div>
+        </>
       ) : (
         <div className="space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Review &amp; apply.</span> The AI&apos;s picks — uncheck any
+              to drop them, edit the text, reorder, then apply. Or reset to choose a different set.
+            </p>
+            <Button variant="outline" size="sm" className="shrink-0" onClick={onReset}>
+              <RotateCcw className="w-4 h-4 mr-1.5" /> Reset
+            </Button>
+          </div>
           {edits.map((e, idx) => {
             const orig = projects.find((p) => p.id === e.id);
             return (
@@ -542,6 +696,7 @@ function StepExperience({
   aiDisabled,
   cooldown,
   onRun,
+  onReset,
 }: {
   profile: Profile;
   patch: Patch;
@@ -549,22 +704,49 @@ function StepExperience({
   busy: boolean;
   aiDisabled: boolean;
   cooldown: number;
-  onRun: () => void;
+  onRun: (selected: Experience[]) => void;
+  onReset: () => void;
 }) {
   const res = wizard.raw.experience;
   const [edits, setEdits] = useState<Record<string, string>>({});
+  // Include/exclude for the AI's returned rewrites (defaults to include).
+  const [include, setInclude] = useState<Record<string, boolean>>({});
+  // Which jobs get sent to the AI (defaults to all once loaded).
+  const [send, setSend] = useState<Set<string>>(new Set());
+  const seeded = useRef(false);
+  useEffect(() => {
+    if (!seeded.current && profile.experience.length) {
+      setSend(new Set(profile.experience.map((e) => e.id)));
+      seeded.current = true;
+    }
+  }, [profile.experience]);
 
   useEffect(() => {
     if (!res) return;
     const map: Record<string, string> = {};
-    res.experience.forEach((e) => (map[e.id] = e.bullets.join("\n")));
+    const inc: Record<string, boolean> = {};
+    res.experience.forEach((e) => {
+      map[e.id] = e.bullets.join("\n");
+      inc[e.id] = true;
+    });
     setEdits(map);
+    setInclude(inc);
   }, [res]);
+
+  const toggleSend = (id: string) =>
+    setSend((prev) => {
+      const n = new Set(prev);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  const selected = profile.experience.filter((e) => send.has(e.id));
 
   const apply = () => {
     patch((d) => {
       d.experience.forEach((job) => {
-        if (edits[job.id] !== undefined) {
+        // Only jobs the AI returned AND that are still included get rewritten;
+        // excluded jobs keep their current bullets.
+        if (edits[job.id] !== undefined && (include[job.id] ?? true)) {
           job.bullets = edits[job.id].split("\n").map((x) => x.trim()).filter(Boolean);
         }
       });
@@ -577,36 +759,96 @@ function StepExperience({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">AI rewrites each job&apos;s bullets toward the JD.</p>
-        <AiButton busy={busy} disabled={aiDisabled} cooldown={cooldown} onClick={onRun} label="Get suggestions" />
-      </div>
-
       {!res ? (
-        <p className="text-sm text-muted-foreground italic">No suggestions yet.</p>
+        <>
+          <p className="text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Pick jobs to send.</span> Only checked jobs are sent. The AI
+            rewrites each one&apos;s bullets toward the job description.
+          </p>
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() =>
+                  setSend(
+                    new Set(selected.length === profile.experience.length ? [] : profile.experience.map((e) => e.id))
+                  )
+                }
+              >
+                {selected.length === profile.experience.length ? "Clear all" : "Select all"}
+              </button>
+              <span>
+                · {selected.length} of {profile.experience.length} selected
+              </span>
+            </div>
+            <AiButton
+              busy={busy}
+              disabled={aiDisabled || selected.length === 0}
+              cooldown={cooldown}
+              onClick={() => onRun(selected)}
+              label={`Get suggestions (${selected.length})`}
+            />
+          </div>
+          {selected.length === 0 && (
+            <p className="text-xs text-destructive">Select at least one job to get suggestions.</p>
+          )}
+
+          <div className="space-y-1.5">
+            {profile.experience.map((job) => (
+              <SelectRow
+                key={job.id}
+                checked={send.has(job.id)}
+                onToggle={() => toggleSend(job.id)}
+                title={job.title}
+                subtitle={job.company}
+                bullets={job.bullets}
+              />
+            ))}
+          </div>
+        </>
       ) : (
         <div className="space-y-3">
-          {profile.experience.map((job) => (
-            <div key={job.id} className="rounded-lg border p-3 space-y-2">
-              <p className="text-sm font-medium">
-                {job.title} <span className="text-muted-foreground font-normal">· {job.company}</span>
-              </p>
-              <Textarea
-                rows={4}
-                className="text-xs"
-                value={edits[job.id] ?? job.bullets.join("\n")}
-                onChange={(e) => setEdits((prev) => ({ ...prev, [job.id]: e.target.value }))}
-              />
-              <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">original bullets</summary>
-                <ul className="list-disc ml-4 mt-1">
-                  {job.bullets.map((b, i) => (
-                    <li key={i}>{b}</li>
-                  ))}
-                </ul>
-              </details>
-            </div>
-          ))}
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Review &amp; apply.</span> Untick a job to keep its current
+              bullets, edit the rewrite, then apply. Only ticked jobs are changed. Or reset to start over.
+            </p>
+            <Button variant="outline" size="sm" className="shrink-0" onClick={onReset}>
+              <RotateCcw className="w-4 h-4 mr-1.5" /> Reset
+            </Button>
+          </div>
+          {res.experience.map((r) => {
+            const job = profile.experience.find((e) => e.id === r.id);
+            if (!job) return null;
+            const on = include[r.id] ?? true;
+            return (
+              <div key={r.id} className={`rounded-lg border p-3 space-y-2 ${on ? "" : "opacity-60"}`}>
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input type="checkbox" checked={on} onChange={() => setInclude((prev) => ({ ...prev, [r.id]: !on }))} />
+                  Include
+                  <span className="text-xs font-normal text-muted-foreground">
+                    · {job.title} · {job.company}
+                  </span>
+                </label>
+                <Textarea
+                  rows={4}
+                  className="text-xs"
+                  value={edits[r.id] ?? job.bullets.join("\n")}
+                  onChange={(e) => setEdits((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                />
+                <details className="text-xs text-muted-foreground">
+                  <summary className="cursor-pointer">original bullets</summary>
+                  <ul className="list-disc ml-4 mt-1">
+                    {job.bullets.map((b, i) => (
+                      <li key={i}>{b}</li>
+                    ))}
+                  </ul>
+                </details>
+              </div>
+            );
+          })}
           <Button size="sm" variant="secondary" onClick={apply}>
             <Check className="w-4 h-4 mr-1.5" /> Apply to resume
           </Button>
