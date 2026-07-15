@@ -17,7 +17,7 @@ import "./resume-preview.css";
 
 const DEFAULT_MODEL = GEMINI_MODELS.find((m) => m.name === "gemini-3-flash-preview")?.name ?? GEMINI_MODELS[0].name;
 
-const emptyWizard: WizardState = { jobDescription: "", step: 0, raw: {} };
+const emptyWizard: WizardState = { jobDescription: "", step: 0, raw: {}, tweaks: {} };
 
 export default function ResumeBuilderPage() {
   const [ready, setReady] = useState(false);
@@ -75,7 +75,9 @@ export default function ResumeBuilderPage() {
       setProfileState(p);
       setProjects(projs);
       setDraftState(d);
-      if (w) setWizardState(w);
+      // Wizards saved before per-step tweaks existed have no `tweaks` — the steps
+      // reseed them from the cached AI responses on first render.
+      if (w) setWizardState({ ...emptyWizard, ...w, tweaks: w.tweaks ?? {} });
       setReady(true);
     })();
   }, []);

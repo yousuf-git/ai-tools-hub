@@ -94,6 +94,41 @@ export interface SuggestedSkill {
   reason: string;
 }
 
+// The user's edits on top of an AI response. Seeded from `raw` when a response
+// arrives, then owned by the user — steps unmount when you move between them, so
+// this has to live outside the step components to survive.
+export interface SummarySkillsTweaks {
+  summary: string;
+  categories: SkillCategory[]; // working arrangement of the profile's skills
+  checked: string[]; // skill items included on the resume
+  addChecked: string[]; // suggested-addition keys included on the resume
+  savedAdditions: string[]; // suggested-addition keys already written to the profile
+}
+
+export interface ProjectTweak {
+  id: string;
+  include: boolean;
+  title: string;
+  stack: string; // comma-separated while being edited
+  bullets: string; // newline-separated while being edited
+  reason: string;
+}
+
+export interface ExperienceTweaks {
+  bullets: Record<string, string>; // job id -> newline-separated bullets
+  include: Record<string, boolean>;
+}
+
+export interface WizardTweaks {
+  summarySkills?: SummarySkillsTweaks | null;
+  projects?: ProjectTweak[] | null;
+  experience?: ExperienceTweaks | null;
+  certifications?: string[] | null; // certification ids to keep
+  // Which items get sent to the AI. Null = not chosen yet, defaults to all.
+  sendProjects?: string[] | null;
+  sendExperience?: string[] | null;
+}
+
 export interface WizardState {
   jobDescription: string;
   step: number;
@@ -104,6 +139,7 @@ export interface WizardState {
     experience?: ExperienceResult | null;
     certifications?: CertificationsResult | null;
   };
+  tweaks: WizardTweaks;
 }
 
 // ---- AI response shapes (returned by /api/resume) ----

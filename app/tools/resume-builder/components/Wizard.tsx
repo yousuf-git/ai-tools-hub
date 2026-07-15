@@ -25,6 +25,12 @@ import type {
   ResumeDraft,
   WizardState,
   SkillCategory,
+  SummarySkillsResult,
+  SummarySkillsTweaks,
+  ProjectsResult,
+  ProjectTweak,
+  ExperienceResult,
+  ExperienceTweaks,
 } from "@/lib/resume/types";
 import {
   generateSummarySkills,
@@ -38,6 +44,55 @@ import type { Patch } from "./ResumePreview";
 import SkillsBadgeBoard from "./SkillsBadgeBoard";
 
 const STEPS = ["Job Description", "Summary & Skills", "Projects", "Experience", "Certifications", "Review"];
+
+// ---- Tweak seeding ----
+// Called when a fresh AI response lands (replacing the previous tweaks), and as a
+// fallback when a step renders against a response that predates its tweaks.
+
+function seedSummarySkills(
+  res: SummarySkillsResult,
+  profile: Profile,
+  prev?: SummarySkillsTweaks | null
+): SummarySkillsTweaks {
+  return {
+    summary: res.summary || "",
+    // A re-run re-picks skills but keeps the arrangement the user built.
+    categories: (prev?.categories.length ? prev.categories : profile.skills).map((c) => ({
+      category: c.category,
+      items: [...c.items],
+    })),
+    checked: res.selectedSkills.map((s) => s.item),
+    addChecked: [],
+    savedAdditions: [...(prev?.savedAdditions ?? [])],
+  };
+}
+
+function seedProjects(res: ProjectsResult, projects: ResumeProject[]): ProjectTweak[] {
+  // The model sometimes omits `refactored` (or fields within it) for projects it
+  // marks as not-included — fall back to the original so nothing dereferences undefined.
+  return res.projects.map((p) => {
+    const orig = projects.find((x) => x.id === p.id);
+    const r = p.refactored ?? {};
+    return {
+      id: p.id,
+      include: p.include,
+      title: r.title ?? orig?.title ?? "",
+      stack: (r.stack ?? orig?.stack ?? []).join(", "),
+      bullets: (r.bullets ?? orig?.bullets ?? []).join("\n"),
+      reason: p.reason,
+    };
+  });
+}
+
+function seedExperience(res: ExperienceResult): ExperienceTweaks {
+  const bullets: Record<string, string> = {};
+  const include: Record<string, boolean> = {};
+  res.experience.forEach((e) => {
+    bullets[e.id] = e.bullets.join("\n");
+    include[e.id] = true;
+  });
+  return { bullets, include };
+}
 
 interface Props {
   profile: Profile;
@@ -77,7 +132,13 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
     }, 1000);
   };
 
-  async function runCall<T>(key: keyof WizardState["raw"], fn: () => Promise<{ data: T }>) {
+  // `seed` rebuilds this step's tweaks from the new response, so a re-run always
+  // starts from the AI's fresh output rather than the last run's edits.
+  async function runCall<T>(
+    key: keyof WizardState["raw"],
+    fn: () => Promise<{ data: T }>,
+    seed: (data: T, w: WizardState) => void
+  ) {
     if (!wizard.jobDescription.trim()) {
       setError("Add a job description first (Step 1).");
       return;
@@ -94,7 +155,10 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
     try {
       recordCall(model, now);
       const res = await fn();
-      updateWizard((w) => void (w.raw[key] = res.data as never));
+      updateWizard((w) => {
+        w.raw[key] = res.data as never;
+        seed(res.data, w);
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "AI request failed.");
     } finally {
@@ -137,10 +201,17 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
             draft={draft}
             patch={patch}
             wizard={wizard}
+            updateWizard={updateWizard}
             busy={busy("summarySkills")}
             aiDisabled={aiDisabled}
             cooldown={cooldown}
-            onRun={() => runCall("summarySkills", () => generateSummarySkills(profile, wizard.jobDescription, model))}
+            onRun={() =>
+              runCall(
+                "summarySkills",
+                () => generateSummarySkills(profile, wizard.jobDescription, model),
+                (d, w) => void (w.tweaks.summarySkills = seedSummarySkills(d, profile, w.tweaks.summarySkills))
+              )
+            }
             onSaveProfile={onSaveProfile}
           />
         )}
@@ -149,10 +220,17 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
             projects={projects}
             patch={patch}
             wizard={wizard}
+            updateWizard={updateWizard}
             busy={busy("projects")}
             aiDisabled={aiDisabled}
             cooldown={cooldown}
-            onRun={(selected) => runCall("projects", () => generateProjects(selected, wizard.jobDescription, model))}
+            onRun={(selected) =>
+              runCall(
+                "projects",
+                () => generateProjects(selected, wizard.jobDescription, model),
+                (d, w) => void (w.tweaks.projects = seedProjects(d, projects))
+              )
+            }
             onReset={() => {
               // Revert the preview's projects to the original saved list and drop
               // the suggestions so the step returns to the selection view.
@@ -166,7 +244,10 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
                   bullets: [...p.bullets],
                 }));
               });
-              updateWizard((w) => void (w.raw.projects = null));
+              updateWizard((w) => {
+                w.raw.projects = null;
+                w.tweaks.projects = null;
+              });
             }}
           />
         )}
@@ -175,17 +256,27 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
             profile={profile}
             patch={patch}
             wizard={wizard}
+            updateWizard={updateWizard}
             busy={busy("experience")}
             aiDisabled={aiDisabled}
             cooldown={cooldown}
-            onRun={(selected) => runCall("experience", () => generateExperience(selected, wizard.jobDescription, model))}
+            onRun={(selected) =>
+              runCall(
+                "experience",
+                () => generateExperience(selected, wizard.jobDescription, model),
+                (d, w) => void (w.tweaks.experience = seedExperience(d))
+              )
+            }
             onReset={() => {
               // Revert the preview's experience bullets to the profile originals
               // and drop the suggestions so the step returns to the selection view.
               patch((d) => {
                 d.experience = profile.experience.map((e) => ({ ...e, bullets: [...e.bullets] }));
               });
-              updateWizard((w) => void (w.raw.experience = null));
+              updateWizard((w) => {
+                w.raw.experience = null;
+                w.tweaks.experience = null;
+              });
             }}
           />
         )}
@@ -194,10 +285,17 @@ export default function Wizard({ profile, projects, draft, patch, model, wizard,
             profile={profile}
             patch={patch}
             wizard={wizard}
+            updateWizard={updateWizard}
             busy={busy("certifications")}
             aiDisabled={aiDisabled}
             cooldown={cooldown}
-            onRun={() => runCall("certifications", () => generateCertifications(profile, wizard.jobDescription, model))}
+            onRun={() =>
+              runCall(
+                "certifications",
+                () => generateCertifications(profile, wizard.jobDescription, model),
+                (d, w) => void (w.tweaks.certifications = d.selected.map((s) => s.id))
+              )
+            }
           />
         )}
         {step === 5 && <StepReview />}
@@ -286,11 +384,14 @@ function StepJobDescription({ wizard, updateWizard }: { wizard: WizardState; upd
 }
 
 // ===== Step 1: Summary & Skills =====
+const skillKey = (c: string, i: string) => `${c}|||${i}`;
+
 function StepSummarySkills({
   profile,
   draft,
   patch,
   wizard,
+  updateWizard,
   busy,
   aiDisabled,
   cooldown,
@@ -301,6 +402,7 @@ function StepSummarySkills({
   draft: ResumeDraft;
   patch: Patch;
   wizard: WizardState;
+  updateWizard: Props["updateWizard"];
   busy: boolean;
   aiDisabled: boolean;
   cooldown: number;
@@ -308,49 +410,26 @@ function StepSummarySkills({
   onSaveProfile: (p: Profile) => void;
 }) {
   const res = wizard.raw.summarySkills;
-  const [summary, setSummary] = useState("");
-  // Selection is keyed by skill label so it survives a cross-category drag.
-  const [checked, setChecked] = useState<Set<string>>(new Set());
-  const [addChecked, setAddChecked] = useState<Set<string>>(new Set());
-  const [saved, setSaved] = useState<Set<string>>(new Set());
-  // Local, reorderable working copy of the profile's skills (seeded once).
-  const [cats, setCats] = useState<SkillCategory[]>([]);
-  const seeded = useRef(false);
+  // Tweaks live on the wizard so they survive this step unmounting; the seed
+  // fallback covers responses cached before tweaks existed.
+  const t = res ? wizard.tweaks.summarySkills ?? seedSummarySkills(res, profile) : null;
 
-  const skillKey = (c: string, i: string) => `${c}|||${i}`;
-
-  useEffect(() => {
-    if (!seeded.current && profile.skills.length) {
-      setCats(profile.skills.map((c) => ({ category: c.category, items: [...c.items] })));
-      seeded.current = true;
-    }
-  }, [profile.skills]);
-
-  // Seed summary + selection when a fresh AI response arrives.
-  useEffect(() => {
-    if (!res) return;
-    setSummary(res.summary || "");
-    setChecked(new Set(res.selectedSkills.map((s) => s.item)));
-    setAddChecked(new Set());
-  }, [res]);
-
-  const toggleChecked = (item: string) =>
-    setChecked((prev) => {
-      const n = new Set(prev);
-      n.has(item) ? n.delete(item) : n.add(item);
-      return n;
+  const setT = (recipe: (t: SummarySkillsTweaks) => void) =>
+    updateWizard((w) => {
+      const r = w.raw.summarySkills;
+      if (!r) return;
+      const cur = w.tweaks.summarySkills ?? seedSummarySkills(r, profile);
+      recipe(cur);
+      w.tweaks.summarySkills = cur;
     });
-  const toggleAdd = (key: string) =>
-    setAddChecked((prev) => {
-      const n = new Set(prev);
-      n.has(key) ? n.delete(key) : n.add(key);
-      return n;
-    });
+
+  const toggleList = (list: string[], v: string) =>
+    list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
 
   // Persist a suggested addition into the profile now (icon flips to a tick).
   const saveAddition = (a: { category: string; item: string }) => {
     const key = skillKey(a.category, a.item);
-    if (saved.has(key)) return;
+    if (t?.savedAdditions.includes(key)) return;
     const p: Profile = structuredClone(profile);
     let row = p.skills.find((s) => s.category === a.category);
     if (!row) {
@@ -359,19 +438,20 @@ function StepSummarySkills({
     }
     if (!row.items.includes(a.item)) row.items.push(a.item);
     onSaveProfile(p);
-    setSaved((prev) => new Set(prev).add(key));
+    setT((x) => void x.savedAdditions.push(key));
   };
 
   const apply = () => {
+    if (!t) return;
     // Build draft.skills from the arranged categories, keeping only selected
     // skills, then fold in any checked suggested additions.
     const newSkills: SkillCategory[] = [];
-    cats.forEach((row) => {
-      const kept = row.items.filter((it) => checked.has(it));
+    t.categories.forEach((row) => {
+      const kept = row.items.filter((it) => t.checked.includes(it));
       if (kept.length) newSkills.push({ category: row.category, items: kept });
     });
     (res?.suggestedAdditions || []).forEach((a) => {
-      if (!addChecked.has(skillKey(a.category, a.item))) return;
+      if (!t.addChecked.includes(skillKey(a.category, a.item))) return;
       let row = newSkills.find((s) => s.category === a.category);
       if (!row) {
         row = { category: a.category, items: [] };
@@ -380,7 +460,7 @@ function StepSummarySkills({
       if (!row.items.includes(a.item)) row.items.push(a.item);
     });
     patch((d) => {
-      d.summary = summary;
+      d.summary = t.summary;
       d.skills = newSkills;
     });
   };
@@ -392,32 +472,36 @@ function StepSummarySkills({
         <AiButton busy={busy} disabled={aiDisabled} cooldown={cooldown} onClick={onRun} label="Get suggestions" />
       </div>
 
-      {!res ? (
+      {!res || !t ? (
         <p className="text-sm text-muted-foreground italic">No suggestions yet — or edit the preview / profile by hand.</p>
       ) : (
         <div className="space-y-4">
           <div className="space-y-1">
             <div className="flex items-center justify-between">
               <Label className="text-xs">Tailored summary</Label>
-              <button className="text-xs text-primary hover:underline" onClick={() => setSummary(draft.summary)}>
+              <button
+                className="text-xs text-primary hover:underline"
+                onClick={() => setT((x) => void (x.summary = draft.summary))}
+              >
                 use current
               </button>
             </div>
-            <Textarea rows={4} value={summary} onChange={(e) => setSummary(e.target.value)} />
+            <Textarea rows={4} value={t.summary} onChange={(e) => setT((x) => void (x.summary = e.target.value))} />
           </div>
 
           <div>
             <Label className="text-xs">From your profile (AI pre-checked the relevant ones)</Label>
             <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
               Tap a skill to include or exclude it. Drag to reorder, drop onto another category to move it, or drag the
-              grip to reorder categories. This arrangement is what lands on your resume.
+              grip to reorder categories. Rename a category by typing in its name. This arrangement is what lands on
+              your resume.
             </p>
             <SkillsBadgeBoard
               mode="select"
-              categories={cats}
-              onChange={setCats}
-              isSelected={(_c, i) => checked.has(i)}
-              onToggle={(_c, i) => toggleChecked(i)}
+              categories={t.categories}
+              onChange={(next) => setT((x) => void (x.categories = next))}
+              isSelected={(_c, i) => t.checked.includes(i)}
+              onToggle={(_c, i) => setT((x) => void (x.checked = toggleList(x.checked, i)))}
             />
           </div>
 
@@ -430,11 +514,15 @@ function StepSummarySkills({
               <div className="space-y-2">
                 {res.suggestedAdditions.map((a) => {
                   const key = skillKey(a.category, a.item);
-                  const isSaved = saved.has(key);
+                  const isSaved = t.savedAdditions.includes(key);
                   return (
                     <div key={key} className="rounded-md border p-2 text-xs">
                       <div className="flex items-center gap-2">
-                        <input type="checkbox" checked={addChecked.has(key)} onChange={() => toggleAdd(key)} />
+                        <input
+                          type="checkbox"
+                          checked={t.addChecked.includes(key)}
+                          onChange={() => setT((x) => void (x.addChecked = toggleList(x.addChecked, key)))}
+                        />
                         <span className="font-medium">{a.item}</span>
                         <span className="text-muted-foreground">· {a.category}</span>
                         <button
@@ -468,19 +556,11 @@ function StepSummarySkills({
 }
 
 // ===== Step 2: Projects =====
-interface ProjEdit {
-  id: string;
-  include: boolean;
-  title: string;
-  stack: string;
-  bullets: string;
-  reason: string;
-}
-
 function StepProjects({
   projects,
   patch,
   wizard,
+  updateWizard,
   busy,
   aiDisabled,
   cooldown,
@@ -490,6 +570,7 @@ function StepProjects({
   projects: ResumeProject[];
   patch: Patch;
   wizard: WizardState;
+  updateWizard: Props["updateWizard"];
   busy: boolean;
   aiDisabled: boolean;
   cooldown: number;
@@ -497,39 +578,18 @@ function StepProjects({
   onReset: () => void;
 }) {
   const res = wizard.raw.projects;
-  const [edits, setEdits] = useState<ProjEdit[]>([]);
-  // Which saved projects get sent to the AI (defaults to all once loaded).
-  const [send, setSend] = useState<Set<string>>(new Set());
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (!seeded.current && projects.length) {
-      setSend(new Set(projects.map((p) => p.id)));
-      seeded.current = true;
-    }
-  }, [projects]);
+  const edits = res ? wizard.tweaks.projects ?? seedProjects(res, projects) : [];
+  // Which saved projects get sent to the AI (defaults to all).
+  const send = wizard.tweaks.sendProjects ?? projects.map((p) => p.id);
 
-  useEffect(() => {
-    if (!res) return;
-    setEdits(
-      // The model sometimes omits `refactored` (or fields within it) for projects
-      // it marks as not-included — fall back to the original project so the map
-      // never dereferences undefined.
-      res.projects.map((p) => {
-        const orig = projects.find((x) => x.id === p.id);
-        const r = p.refactored ?? {};
-        return {
-          id: p.id,
-          include: p.include,
-          title: r.title ?? orig?.title ?? "",
-          stack: (r.stack ?? orig?.stack ?? []).join(", "),
-          bullets: (r.bullets ?? orig?.bullets ?? []).join("\n"),
-          reason: p.reason,
-        };
-      })
-    );
-  }, [res, projects]);
+  const setEdits = (recipe: (prev: ProjectTweak[]) => ProjectTweak[]) =>
+    updateWizard((w) => {
+      const r = w.raw.projects;
+      if (!r) return;
+      w.tweaks.projects = recipe(w.tweaks.projects ?? seedProjects(r, projects));
+    });
 
-  const setEdit = (id: string, recipe: (e: ProjEdit) => void) =>
+  const setEdit = (id: string, recipe: (e: ProjectTweak) => void) =>
     setEdits((prev) => prev.map((e) => (e.id === id ? (() => { const n = { ...e }; recipe(n); return n; })() : e)));
 
   // Reorder — the edits order is the order projects land in the resume on apply.
@@ -557,13 +617,10 @@ function StepProjects({
     });
   };
 
+  const setSend = (ids: string[]) => updateWizard((w) => void (w.tweaks.sendProjects = ids));
   const toggleSend = (id: string) =>
-    setSend((prev) => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  const selected = projects.filter((p) => send.has(p.id));
+    setSend(send.includes(id) ? send.filter((x) => x !== id) : [...send, id]);
+  const selected = projects.filter((p) => send.includes(p.id));
 
   if (projects.length === 0) {
     return <p className="text-sm text-muted-foreground italic">No saved projects yet — add some in My Profile.</p>;
@@ -583,7 +640,7 @@ function StepProjects({
               <button
                 type="button"
                 className="text-primary hover:underline"
-                onClick={() => setSend(new Set(selected.length === projects.length ? [] : projects.map((p) => p.id)))}
+                onClick={() => setSend(selected.length === projects.length ? [] : projects.map((p) => p.id))}
               >
                 {selected.length === projects.length ? "Clear all" : "Select all"}
               </button>
@@ -607,7 +664,7 @@ function StepProjects({
             {projects.map((p) => (
               <SelectRow
                 key={p.id}
-                checked={send.has(p.id)}
+                checked={send.includes(p.id)}
                 onToggle={() => toggleSend(p.id)}
                 title={p.title}
                 subtitle={p.stack.join(" · ")}
@@ -692,6 +749,7 @@ function StepExperience({
   profile,
   patch,
   wizard,
+  updateWizard,
   busy,
   aiDisabled,
   cooldown,
@@ -701,6 +759,7 @@ function StepExperience({
   profile: Profile;
   patch: Patch;
   wizard: WizardState;
+  updateWizard: Props["updateWizard"];
   busy: boolean;
   aiDisabled: boolean;
   cooldown: number;
@@ -708,49 +767,35 @@ function StepExperience({
   onReset: () => void;
 }) {
   const res = wizard.raw.experience;
-  const [edits, setEdits] = useState<Record<string, string>>({});
-  // Include/exclude for the AI's returned rewrites (defaults to include).
-  const [include, setInclude] = useState<Record<string, boolean>>({});
-  // Which jobs get sent to the AI (defaults to all once loaded).
-  const [send, setSend] = useState<Set<string>>(new Set());
-  const seeded = useRef(false);
-  useEffect(() => {
-    if (!seeded.current && profile.experience.length) {
-      setSend(new Set(profile.experience.map((e) => e.id)));
-      seeded.current = true;
-    }
-  }, [profile.experience]);
+  const t = res ? wizard.tweaks.experience ?? seedExperience(res) : null;
+  // Which jobs get sent to the AI (defaults to all).
+  const send = wizard.tweaks.sendExperience ?? profile.experience.map((e) => e.id);
 
-  useEffect(() => {
-    if (!res) return;
-    const map: Record<string, string> = {};
-    const inc: Record<string, boolean> = {};
-    res.experience.forEach((e) => {
-      map[e.id] = e.bullets.join("\n");
-      inc[e.id] = true;
+  const setT = (recipe: (t: ExperienceTweaks) => void) =>
+    updateWizard((w) => {
+      const r = w.raw.experience;
+      if (!r) return;
+      const cur = w.tweaks.experience ?? seedExperience(r);
+      recipe(cur);
+      w.tweaks.experience = cur;
     });
-    setEdits(map);
-    setInclude(inc);
-  }, [res]);
 
+  const setSend = (ids: string[]) => updateWizard((w) => void (w.tweaks.sendExperience = ids));
   const toggleSend = (id: string) =>
-    setSend((prev) => {
-      const n = new Set(prev);
-      n.has(id) ? n.delete(id) : n.add(id);
-      return n;
-    });
-  const selected = profile.experience.filter((e) => send.has(e.id));
+    setSend(send.includes(id) ? send.filter((x) => x !== id) : [...send, id]);
+  const selected = profile.experience.filter((e) => send.includes(e.id));
 
   const apply = () => {
+    if (!t) return;
     patch((d) => {
-      // A job was reviewed this round iff it has an edits entry (seeded from the
+      // A job was reviewed this round iff it has a bullets entry (seeded from the
       // AI response). Reviewed + unticked → drop it from the resume. Reviewed +
       // ticked → apply the rewrite. Jobs never sent stay untouched.
       d.experience = d.experience
-        .filter((job) => edits[job.id] === undefined || (include[job.id] ?? true))
+        .filter((job) => t.bullets[job.id] === undefined || (t.include[job.id] ?? true))
         .map((job) =>
-          edits[job.id] !== undefined
-            ? { ...job, bullets: edits[job.id].split("\n").map((x) => x.trim()).filter(Boolean) }
+          t.bullets[job.id] !== undefined
+            ? { ...job, bullets: t.bullets[job.id].split("\n").map((x) => x.trim()).filter(Boolean) }
             : job
         );
     });
@@ -775,9 +820,7 @@ function StepExperience({
                 type="button"
                 className="text-primary hover:underline"
                 onClick={() =>
-                  setSend(
-                    new Set(selected.length === profile.experience.length ? [] : profile.experience.map((e) => e.id))
-                  )
+                  setSend(selected.length === profile.experience.length ? [] : profile.experience.map((e) => e.id))
                 }
               >
                 {selected.length === profile.experience.length ? "Clear all" : "Select all"}
@@ -802,7 +845,7 @@ function StepExperience({
             {profile.experience.map((job) => (
               <SelectRow
                 key={job.id}
-                checked={send.has(job.id)}
+                checked={send.includes(job.id)}
                 onToggle={() => toggleSend(job.id)}
                 title={job.title}
                 subtitle={job.company}
@@ -824,12 +867,12 @@ function StepExperience({
           </div>
           {res.experience.map((r) => {
             const job = profile.experience.find((e) => e.id === r.id);
-            if (!job) return null;
-            const on = include[r.id] ?? true;
+            if (!job || !t) return null;
+            const on = t.include[r.id] ?? true;
             return (
               <div key={r.id} className={`rounded-lg border p-3 space-y-2 ${on ? "" : "opacity-60"}`}>
                 <label className="flex items-center gap-2 text-sm font-medium">
-                  <input type="checkbox" checked={on} onChange={() => setInclude((prev) => ({ ...prev, [r.id]: !on }))} />
+                  <input type="checkbox" checked={on} onChange={() => setT((x) => void (x.include[r.id] = !on))} />
                   Include
                   <span className="text-xs font-normal text-muted-foreground">
                     · {job.title} · {job.company}
@@ -838,8 +881,8 @@ function StepExperience({
                 <Textarea
                   rows={4}
                   className="text-xs"
-                  value={edits[r.id] ?? job.bullets.join("\n")}
-                  onChange={(e) => setEdits((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                  value={t.bullets[r.id] ?? job.bullets.join("\n")}
+                  onChange={(e) => setT((x) => void (x.bullets[r.id] = e.target.value))}
                 />
                 <details className="text-xs text-muted-foreground">
                   <summary className="cursor-pointer">original bullets</summary>
@@ -866,6 +909,7 @@ function StepCertifications({
   profile,
   patch,
   wizard,
+  updateWizard,
   busy,
   aiDisabled,
   cooldown,
@@ -874,27 +918,22 @@ function StepCertifications({
   profile: Profile;
   patch: Patch;
   wizard: WizardState;
+  updateWizard: Props["updateWizard"];
   busy: boolean;
   aiDisabled: boolean;
   cooldown: number;
   onRun: () => void;
 }) {
   const res = wizard.raw.certifications;
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const checked = wizard.tweaks.certifications ?? res?.selected.map((s) => s.id) ?? [];
 
-  useEffect(() => {
-    if (!res) return;
-    setChecked(new Set(res.selected.map((s) => s.id)));
-  }, [res]);
-
-  const toggle = (id: string) => {
-    const next = new Set(checked);
-    next.has(id) ? next.delete(id) : next.add(id);
-    setChecked(next);
-  };
+  const toggle = (id: string) =>
+    updateWizard(
+      (w) => void (w.tweaks.certifications = checked.includes(id) ? checked.filter((x) => x !== id) : [...checked, id])
+    );
 
   const apply = () => {
-    const keep = profile.certifications.filter((c) => checked.has(c.id));
+    const keep = profile.certifications.filter((c) => checked.includes(c.id));
     patch((d) => void (d.certifications = keep.map((c) => ({ ...c }))));
   };
 
@@ -913,7 +952,7 @@ function StepCertifications({
         <div className="space-y-2">
           {profile.certifications.map((c) => (
             <label key={c.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
-              <input type="checkbox" className="mt-0.5" checked={checked.has(c.id)} onChange={() => toggle(c.id)} />
+              <input type="checkbox" className="mt-0.5" checked={checked.includes(c.id)} onChange={() => toggle(c.id)} />
               <span>
                 <span className="font-medium">{c.name}</span>{" "}
                 <span className="text-xs text-muted-foreground">· {c.year}</span>
