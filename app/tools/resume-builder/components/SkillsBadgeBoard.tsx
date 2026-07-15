@@ -130,10 +130,14 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
     commit(cats);
   }
 
-  // ---- edit-mode mutations ----
+  // ---- mutations ----
   const deleteCategory = (category: string) => commit(cats.filter((c) => c.category !== category));
-  const renameCategory = (from: string, to: string) =>
-    commit(cats.map((c) => (c.category === from ? { ...c, category: to } : c)));
+  // The name doubles as the drag id, so a rename must keep names unique and non-empty.
+  const renameCategory = (from: string, to: string) => {
+    const v = to.trim();
+    if (!v || v === from || cats.some((c) => c.category === v)) return;
+    commit(cats.map((c) => (c.category === from ? { ...c, category: v } : c)));
+  };
   const deleteSkill = (category: string, item: string) =>
     commit(cats.map((c) => (c.category === category ? { ...c, items: c.items.filter((i) => i !== item) } : c)));
   const addSkill = (category: string, value: string) => {
@@ -238,16 +242,7 @@ function SortableCategory({
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
-        {mode === "edit" ? (
-          <Input
-            value={category.category}
-            placeholder="Category"
-            onChange={(e) => onRename(e.target.value)}
-            className="h-6 w-40 text-xs font-medium"
-          />
-        ) : (
-          <span className="text-xs font-medium text-muted-foreground">{category.category}</span>
-        )}
+        <CategoryNameInput name={category.category} onRename={onRename} />
         <button
           type="button"
           onClick={onDelete}
@@ -259,6 +254,33 @@ function SortableCategory({
       </div>
       {children}
     </div>
+  );
+}
+
+// Buffers the name while typing. A rename changes the category's drag id and React
+// key, so committing per keystroke would remount the row and steal focus mid-word.
+// A committed rename remounts this input (new key), reseeding `value` from the prop.
+function CategoryNameInput({ name, onRename }: { name: string; onRename: (to: string) => void }) {
+  const [value, setValue] = useState(name);
+  return (
+    <Input
+      value={value}
+      placeholder="Category"
+      aria-label={`Rename ${name || "category"}`}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+        if (e.key === "Escape") setValue(name);
+      }}
+      onBlur={() => {
+        onRename(value);
+        setValue(name);
+      }}
+      className="h-6 w-40 text-xs font-medium"
+    />
   );
 }
 
