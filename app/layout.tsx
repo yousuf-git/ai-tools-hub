@@ -52,7 +52,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${plexMono.variable}`}>
-      <body className={archivo.className}>
+      <body className={archivo.className} suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
