@@ -199,6 +199,15 @@
 .resume-sheet .line-item .where {
   color: var(--ink-soft);
 }
+.resume-sheet .line-item .ext {
+  color: var(--accent);
+  font-size: 8.5pt;
+  margin-left: 4px;
+  font-weight: 500;
+}
+.resume-sheet .line-item .ext a {
+  color: var(--accent);
+}
 
 /* ---- Education ---- */
 .resume-sheet .edu-item {

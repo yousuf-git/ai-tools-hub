@@ -277,12 +277,30 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
             <h2>Certifications</h2>
             {draft.certifications.map((c, i) => (
               <div className="line-item" key={c.id}>
-                <Editable
-                  tag="strong"
-                  value={c.name}
-                  placeholder="Certification name"
-                  onCommit={(v) => patch((d) => void (d.certifications[i].name = v))}
-                />
+                <span>
+                  <Editable
+                    tag="strong"
+                    value={c.name}
+                    placeholder="Certification name"
+                    onCommit={(v) => patch((d) => void (d.certifications[i].name = v))}
+                  />
+                  <span className="where">
+                    {" — "}
+                    <Editable
+                      value={c.issuer}
+                      placeholder="Issuer"
+                      onCommit={(v) => patch((d) => void (d.certifications[i].issuer = v))}
+                    />
+                  </span>
+                  {c.link?.trim() && (
+                    <span className="ext">
+                      ↗{" "}
+                      <a href={httpHref(c.link)} target="_blank" rel="noopener noreferrer">
+                        verify
+                      </a>
+                    </span>
+                  )}
+                </span>
                 <Editable
                   className="entry-meta"
                   value={c.year}

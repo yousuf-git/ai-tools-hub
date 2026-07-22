@@ -927,13 +927,29 @@ function StepCertifications({
   const res = wizard.raw.certifications;
   const checked = wizard.tweaks.certifications ?? res?.selected.map((s) => s.id) ?? [];
 
+  // Display/apply order — user-moved ids first, any certs added since appended in profile order.
+  const order = wizard.tweaks.certOrder ?? [];
+  const orderedCerts = [
+    ...order.map((id) => profile.certifications.find((c) => c.id === id)).filter((c): c is NonNullable<typeof c> => Boolean(c)),
+    ...profile.certifications.filter((c) => !order.includes(c.id)),
+  ];
+
   const toggle = (id: string) =>
     updateWizard(
       (w) => void (w.tweaks.certifications = checked.includes(id) ? checked.filter((x) => x !== id) : [...checked, id])
     );
 
+  const move = (id: string, dir: -1 | 1) => {
+    const ids = orderedCerts.map((c) => c.id);
+    const i = ids.indexOf(id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    updateWizard((w) => void (w.tweaks.certOrder = ids));
+  };
+
   const apply = () => {
-    const keep = profile.certifications.filter((c) => checked.includes(c.id));
+    const keep = orderedCerts.filter((c) => checked.includes(c.id));
     patch((d) => void (d.certifications = keep.map((c) => ({ ...c }))));
   };
 
@@ -950,15 +966,38 @@ function StepCertifications({
         <p className="text-sm text-muted-foreground italic">No certifications on your profile.</p>
       ) : (
         <div className="space-y-2">
-          {profile.certifications.map((c) => (
-            <label key={c.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
-              <input type="checkbox" className="mt-0.5" checked={checked.includes(c.id)} onChange={() => toggle(c.id)} />
-              <span>
-                <span className="font-medium">{c.name}</span>{" "}
-                <span className="text-xs text-muted-foreground">· {c.year}</span>
-                {reasonFor(c.id) && <span className="block text-xs text-primary mt-0.5">{reasonFor(c.id)}</span>}
-              </span>
-            </label>
+          {orderedCerts.map((c, idx) => (
+            <div key={c.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
+              <label className="flex flex-1 items-start gap-2">
+                <input type="checkbox" className="mt-0.5" checked={checked.includes(c.id)} onChange={() => toggle(c.id)} />
+                <span>
+                  <span className="font-medium">{c.name}</span>{" "}
+                  {c.issuer && <span className="text-xs text-muted-foreground">· {c.issuer}</span>}{" "}
+                  <span className="text-xs text-muted-foreground">· {c.year}</span>
+                  {reasonFor(c.id) && <span className="block text-xs text-primary mt-0.5">{reasonFor(c.id)}</span>}
+                </span>
+              </label>
+              <div className="flex shrink-0 gap-1">
+                <button
+                  type="button"
+                  onClick={() => move(c.id, -1)}
+                  disabled={idx === 0}
+                  aria-label="Move up"
+                  className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => move(c.id, 1)}
+                  disabled={idx === orderedCerts.length - 1}
+                  aria-label="Move down"
+                  className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <ArrowDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
           ))}
           <Button size="sm" variant="secondary" onClick={apply}>
             <Check className="w-4 h-4 mr-1.5" /> Apply selected

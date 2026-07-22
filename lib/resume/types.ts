@@ -45,6 +45,8 @@ export interface Certification {
   name: string;
   issuer: string;
   year: string;
+  // Optional verification URL — older stored profiles won't have it.
+  link?: string;
 }
 
 export interface Education {
@@ -124,6 +126,7 @@ export interface WizardTweaks {
   projects?: ProjectTweak[] | null;
   experience?: ExperienceTweaks | null;
   certifications?: string[] | null; // certification ids to keep
+  certOrder?: string[] | null; // display/apply order of all certification ids
   // Which items get sent to the AI. Null = not chosen yet, defaults to all.
   sendProjects?: string[] | null;
   sendExperience?: string[] | null;

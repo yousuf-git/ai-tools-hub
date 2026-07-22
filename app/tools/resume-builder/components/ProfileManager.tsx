@@ -241,11 +241,18 @@ export default function ProfileManager({
       >
         <div className="space-y-2">
           {draft.certifications.map((c, i) => (
-            <div key={c.id} className="flex gap-2">
-              <Input className="flex-1" placeholder="Name" value={c.name} onChange={(e) => update((p) => void (p.certifications[i].name = e.target.value))} />
-              <Input className="w-40" placeholder="Issuer" value={c.issuer} onChange={(e) => update((p) => void (p.certifications[i].issuer = e.target.value))} />
-              <Input className="w-20" placeholder="Year" value={c.year} onChange={(e) => update((p) => void (p.certifications[i].year = e.target.value))} />
-              <RemoveButton onClick={() => update((p) => p.certifications.splice(i, 1))} />
+            <div key={c.id} className="rounded-md border p-2 space-y-2">
+              <div className="flex gap-2">
+                <Input className="flex-1" placeholder="Name" value={c.name} onChange={(e) => update((p) => void (p.certifications[i].name = e.target.value))} />
+                <Input className="w-40" placeholder="Issuer" value={c.issuer} onChange={(e) => update((p) => void (p.certifications[i].issuer = e.target.value))} />
+                <Input className="w-20" placeholder="Year" value={c.year} onChange={(e) => update((p) => void (p.certifications[i].year = e.target.value))} />
+                <RemoveButton onClick={() => update((p) => p.certifications.splice(i, 1))} />
+              </div>
+              <Input
+                placeholder="Verification link (optional)"
+                value={c.link ?? ""}
+                onChange={(e) => update((p) => void (p.certifications[i].link = e.target.value))}
+              />
             </div>
           ))}
           {draft.certifications.length === 0 && <Empty>No certifications yet.</Empty>}

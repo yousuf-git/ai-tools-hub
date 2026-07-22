@@ -76,7 +76,10 @@ export function generateExperience(experience: Experience[], jobDescription: str
 export function generateCertifications(profile: Profile, jobDescription: string, model: string) {
   return callResumeApi<CertificationsResult>(
     "certifications",
-    { jobDescription, certifications: profile.certifications },
+    {
+      jobDescription,
+      certifications: profile.certifications.map((c) => ({ id: c.id, name: c.name, issuer: c.issuer, year: c.year })),
+    },
     model
   );
 }
