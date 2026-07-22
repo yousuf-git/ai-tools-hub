@@ -788,16 +788,15 @@ function StepExperience({
   const apply = () => {
     if (!t) return;
     patch((d) => {
-      // A job was reviewed this round iff it has a bullets entry (seeded from the
-      // AI response). Reviewed + unticked → drop it from the resume. Reviewed +
-      // ticked → apply the rewrite. Jobs never sent stay untouched.
-      d.experience = d.experience
-        .filter((job) => t.bullets[job.id] === undefined || (t.include[job.id] ?? true))
-        .map((job) =>
-          t.bullets[job.id] !== undefined
-            ? { ...job, bullets: t.bullets[job.id].split("\n").map((x) => x.trim()).filter(Boolean) }
-            : job
-        );
+      // The resume ends up with exactly the jobs sent to the AI and still ticked —
+      // jobs left out of the selection are dropped, not silently kept. Inline
+      // edits to a job's header survive via the existing draft entry.
+      d.experience = profile.experience
+        .filter((job) => t.bullets[job.id] !== undefined && (t.include[job.id] ?? true))
+        .map((job) => {
+          const cur = d.experience.find((x) => x.id === job.id) ?? job;
+          return { ...cur, bullets: t.bullets[job.id].split("\n").map((x) => x.trim()).filter(Boolean) };
+        });
     });
   };
 
