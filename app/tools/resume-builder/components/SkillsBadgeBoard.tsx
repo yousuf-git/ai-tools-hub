@@ -22,7 +22,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, X, Check, Plus, Trash2 } from "lucide-react";
+import { GripVertical, X, Check, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { SkillCategory } from "@/lib/resume/types";
 
@@ -31,11 +31,15 @@ import type { SkillCategory } from "@/lib/resume/types";
 const SEP = "::@::";
 const itemId = (category: string, item: string) => `${category}${SEP}${item}`;
 
+const cloneCats = (cats: SkillCategory[]): SkillCategory[] =>
+  cats.map((c) => ({ category: c.category, items: [...c.items], bold: [...(c.bold ?? [])] }));
+
 interface Props {
   categories: SkillCategory[];
   onChange: (next: SkillCategory[]) => void;
-  /** `select` = toggle skills on/off + reorder (wizard). `edit` = add/remove skills + categories (profile). */
+  /** `select` = toggle bold + reorder (wizard). `edit` = add/remove + bold + categories (profile). */
   mode: "select" | "edit";
+  /** When set, overrides per-category `bold` for the filled visual (wizard `checked` list). */
   isSelected?: (category: string, item: string) => boolean;
   onToggle?: (category: string, item: string) => void;
 }
@@ -43,15 +47,16 @@ interface Props {
 /**
  * Drag-and-drop skills organiser rendered as badges. Reorder a skill within its
  * category, drop it onto another category, or drag the grip to reorder whole
- * categories. In `edit` mode badges can be added/removed and categories managed.
+ * categories. Filled badge = bold on resume; unfilled = regular weight.
  */
 export default function SkillsBadgeBoard({ categories, onChange, mode, isSelected, onToggle }: Props) {
-  const [cats, setCats] = useState<SkillCategory[]>(categories);
+  const [cats, setCats] = useState<SkillCategory[]>(() => cloneCats(categories));
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
   const dragging = useRef(false);
 
   useEffect(() => {
-    if (!dragging.current) setCats(categories);
+    if (!dragging.current) setCats(cloneCats(categories));
   }, [categories]);
 
   const sensors = useSensors(
@@ -65,9 +70,18 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
     return cats.find((c) => c.items.some((it) => itemId(c.category, it) === id))?.category;
   };
 
+  const isOpen = (category: string) => openCats[category] ?? false;
+  const toggleOpen = (category: string) =>
+    setOpenCats((prev) => ({ ...prev, [category]: !(prev[category] ?? false) }));
+
   const commit = (next: SkillCategory[]) => {
-    setCats(next);
-    onChange(next.map((c) => ({ category: c.category, items: [...c.items] })));
+    const cleaned = next.map((c) => ({
+      category: c.category,
+      items: [...c.items],
+      bold: (c.bold ?? []).filter((b) => c.items.includes(b)),
+    }));
+    setCats(cleaned);
+    onChange(cleaned);
   };
 
   function onDragStart(e: DragStartEvent) {
@@ -92,12 +106,20 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
       const overId = String(e.over!.id);
       const overIndex = toCat.items.findIndex((it) => itemId(to, it) === overId);
       const insertAt = overIndex >= 0 ? overIndex : toCat.items.length;
+      const wasBold = (fromCat.bold ?? []).includes(skill);
       return prev.map((c) => {
-        if (c.category === from) return { ...c, items: c.items.filter((it) => it !== skill) };
+        if (c.category === from) {
+          return {
+            ...c,
+            items: c.items.filter((it) => it !== skill),
+            bold: (c.bold ?? []).filter((b) => b !== skill),
+          };
+        }
         if (c.category === to) {
           const items = [...c.items];
           items.splice(insertAt, 0, skill);
-          return { ...c, items };
+          const bold = wasBold ? [...(c.bold ?? []), skill] : [...(c.bold ?? [])];
+          return { ...c, items, bold };
         }
         return c;
       });
@@ -132,26 +154,63 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
 
   // ---- mutations ----
   const deleteCategory = (category: string) => commit(cats.filter((c) => c.category !== category));
-  // The name doubles as the drag id, so a rename must keep names unique and non-empty.
   const renameCategory = (from: string, to: string) => {
     const v = to.trim();
     if (!v || v === from || cats.some((c) => c.category === v)) return;
     commit(cats.map((c) => (c.category === from ? { ...c, category: v } : c)));
+    setOpenCats((prev) => {
+      if (!(from in prev)) return prev;
+      const next = { ...prev };
+      next[v] = next[from];
+      delete next[from];
+      return next;
+    });
   };
   const deleteSkill = (category: string, item: string) =>
-    commit(cats.map((c) => (c.category === category ? { ...c, items: c.items.filter((i) => i !== item) } : c)));
+    commit(
+      cats.map((c) =>
+        c.category === category
+          ? { ...c, items: c.items.filter((i) => i !== item), bold: (c.bold ?? []).filter((b) => b !== item) }
+          : c
+      )
+    );
   const addSkill = (category: string, value: string) => {
     const v = value.trim();
     if (!v) return;
-    commit(cats.map((c) => (c.category === category ? (c.items.includes(v) ? c : { ...c, items: [...c.items, v] }) : c)));
+    commit(
+      cats.map((c) => (c.category === category ? (c.items.includes(v) ? c : { ...c, items: [...c.items, v] }) : c))
+    );
   };
   const addCategory = (name: string) => {
     const v = name.trim();
     if (!v || cats.some((c) => c.category === v)) return;
-    commit([...cats, { category: v, items: [] }]);
+    commit([{ category: v, items: [], bold: [] }, ...cats]);
+    setOpenCats((prev) => ({ ...prev, [v]: true }));
+  };
+  const toggleBold = (category: string, item: string) => {
+    if (onToggle) {
+      onToggle(category, item);
+      return;
+    }
+    commit(
+      cats.map((c) => {
+        if (c.category !== category) return c;
+        const bold = c.bold ?? [];
+        return {
+          ...c,
+          bold: bold.includes(item) ? bold.filter((b) => b !== item) : [...bold, item],
+        };
+      })
+    );
   };
 
+  const filled = (category: string, item: string) =>
+    isSelected ? isSelected(category, item) : (cats.find((c) => c.category === category)?.bold ?? []).includes(item);
+
   const activeLabel = activeId && !isCategory(activeId) ? activeId.split(SEP)[1] : activeId;
+  const activeFilled = activeId && !isCategory(activeId)
+    ? filled(activeId.split(SEP)[0], activeId.split(SEP)[1])
+    : true;
 
   return (
     <DndContext
@@ -161,13 +220,16 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
     >
+      {mode === "edit" && <AddCategoryInput onAdd={addCategory} className="mb-2" />}
+
       <SortableContext items={cats.map((c) => c.category)} strategy={verticalListSortingStrategy}>
         <div className="space-y-2">
           {cats.map((c) => (
             <SortableCategory
               key={c.category}
               category={c}
-              mode={mode}
+              open={isOpen(c.category)}
+              onToggleOpen={() => toggleOpen(c.category)}
               onDelete={() => deleteCategory(c.category)}
               onRename={(to) => renameCategory(c.category, to)}
             >
@@ -182,8 +244,8 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
                       id={itemId(c.category, it)}
                       label={it}
                       mode={mode}
-                      selected={isSelected ? isSelected(c.category, it) : true}
-                      onToggle={onToggle ? () => onToggle(c.category, it) : undefined}
+                      selected={filled(c.category, it)}
+                      onToggle={() => toggleBold(c.category, it)}
                       onDelete={() => deleteSkill(c.category, it)}
                     />
                   ))}
@@ -195,14 +257,18 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
         </div>
       </SortableContext>
 
-      {mode === "edit" && <AddCategoryInput onAdd={addCategory} />}
-
       <DragOverlay>
         {activeId ? (
           isCategory(activeId) ? (
             <div className="rounded-md border bg-background px-2 py-1 text-xs font-medium shadow-lg">{activeLabel}</div>
           ) : (
-            <span className="rounded-full border border-primary bg-primary px-2 py-0.5 text-xs text-primary-foreground shadow-lg">
+            <span
+              className={`rounded-full border px-2.5 py-0.5 text-xs font-medium shadow-lg ${
+                activeFilled
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background text-foreground"
+              }`}
+            >
               {activeLabel}
             </span>
           )
@@ -214,13 +280,15 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
 
 function SortableCategory({
   category,
-  mode,
+  open,
+  onToggleOpen,
   onDelete,
   onRename,
   children,
 }: {
   category: SkillCategory;
-  mode: "select" | "edit";
+  open: boolean;
+  onToggleOpen: () => void;
   onDelete: () => void;
   onRename: (to: string) => void;
   children: React.ReactNode;
@@ -232,7 +300,7 @@ function SortableCategory({
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={`rounded-md border bg-background p-2 ${isDragging ? "opacity-50" : ""}`}
     >
-      <div className="mb-1.5 flex items-center gap-1">
+      <div className="flex items-center gap-1">
         <button
           type="button"
           className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
@@ -242,7 +310,17 @@ function SortableCategory({
         >
           <GripVertical className="h-3.5 w-3.5" />
         </button>
+        <button
+          type="button"
+          onClick={onToggleOpen}
+          aria-expanded={open}
+          aria-label={open ? `Collapse ${category.category}` : `Expand ${category.category}`}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </button>
         <CategoryNameInput name={category.category} onRename={onRename} />
+        <span className="text-[10px] text-muted-foreground tabular-nums">{category.items.length}</span>
         <button
           type="button"
           onClick={onDelete}
@@ -252,14 +330,11 @@ function SortableCategory({
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
-      {children}
+      {open && <div className="mt-1.5">{children}</div>}
     </div>
   );
 }
 
-// Buffers the name while typing. A rename changes the category's drag id and React
-// key, so committing per keystroke would remount the row and steal focus mid-word.
-// A committed rename remounts this input (new key), reseeding `value` from the prop.
 function CategoryNameInput({ name, onRename }: { name: string; onRename: (to: string) => void }) {
   const [value, setValue] = useState(name);
   return (
@@ -296,40 +371,49 @@ function SortableSkill({
   label: string;
   mode: "select" | "edit";
   selected: boolean;
-  onToggle?: () => void;
+  onToggle: () => void;
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const on = mode === "select" ? selected : true;
   return (
     <span
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      onClick={mode === "select" ? onToggle : undefined}
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs touch-none transition-colors ${
-        mode === "select" ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
+      onClick={(e) => {
+        // Don't toggle when clicking the delete control.
+        if ((e.target as HTMLElement).closest("button")) return;
+        onToggle();
+      }}
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium touch-none transition-colors cursor-pointer ${
+        mode === "edit" ? "active:cursor-grabbing" : ""
       } ${
         isDragging
           ? "opacity-40 border-primary"
-          : on
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-border bg-transparent text-muted-foreground hover:border-primary/60"
+          : selected
+            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+            : "border-border/80 bg-muted/40 text-foreground hover:border-primary/50 hover:bg-muted"
       }`}
       {...attributes}
       {...listeners}
     >
-      {mode === "select" && on && <Check className="h-3 w-3" />}
+      {selected && <Check className="h-3 w-3 shrink-0 opacity-90" />}
       {label}
       {mode === "edit" && (
         <button
           type="button"
           aria-label={`Remove ${label}`}
-          // Stop the drag sensor claiming this pointer so the tap deletes.
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={onDelete}
-          className="text-muted-foreground/70 hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className={`ml-0.5 rounded-full p-0.5 transition-colors ${
+            selected
+              ? "text-primary-foreground hover:bg-primary-foreground/20"
+              : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          }`}
         >
-          <X className="h-3 w-3" />
+          <X className="h-3 w-3" strokeWidth={2.5} />
         </button>
       )}
     </span>
@@ -361,14 +445,14 @@ function AddSkillInput({ onAdd }: { onAdd: (v: string) => void }) {
   );
 }
 
-function AddCategoryInput({ onAdd }: { onAdd: (v: string) => void }) {
+function AddCategoryInput({ onAdd, className = "" }: { onAdd: (v: string) => void; className?: string }) {
   const [value, setValue] = useState("");
   const commit = () => {
     onAdd(value);
     setValue("");
   };
   return (
-    <div className="mt-2 flex items-center gap-1.5">
+    <div className={`flex items-center gap-1.5 ${className}`}>
       <Input
         value={value}
         placeholder="New category"

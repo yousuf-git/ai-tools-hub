@@ -27,7 +27,7 @@ export default function ResumeBuilderPage() {
   const [wizard, setWizardState] = useState<WizardState>(emptyWizard);
 
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
-  const [zoom, setZoom] = useState(0.62);
+  const [zoom, setZoom] = useState(1);
   const [tab, setTab] = useState<"profile" | "generate">("generate");
 
   // Key lives server-side only; ask the API whether it's configured.
@@ -123,12 +123,17 @@ export default function ResumeBuilderPage() {
   const onProfileChange = useCallback((p: Profile) => setProfileState(p), []);
 
   const onSaveProject = useCallback((p: ResumeProject) => {
-    store.putProject(p);
     setProjects((prev) => {
       const i = prev.findIndex((x) => x.id === p.id);
-      if (i === -1) return [...prev, p];
+      if (i === -1) {
+        // New projects land at the top for faster editing.
+        const next = [{ ...p, order: (prev[0]?.order ?? 1) - 1 }, ...prev];
+        store.putProject(next[0]);
+        return next;
+      }
       const next = [...prev];
-      next[i] = p;
+      next[i] = { ...p, order: prev[i].order ?? i };
+      store.putProject(next[i]);
       return next;
     });
   }, []);
@@ -138,8 +143,25 @@ export default function ResumeBuilderPage() {
     setProjects((prev) => prev.filter((x) => x.id !== id));
   }, []);
 
+  const onReorderProjects = useCallback((ids: string[]) => {
+    setProjects((prev) => {
+      const byId = new Map(prev.map((p) => [p.id, p]));
+      const next: ResumeProject[] = [];
+      ids.forEach((id, order) => {
+        const p = byId.get(id);
+        if (p) next.push({ ...p, order });
+      });
+      prev.forEach((p) => {
+        if (!ids.includes(p.id)) next.push({ ...p, order: next.length });
+      });
+      store.bulkPutProjects(next);
+      return next;
+    });
+  }, []);
+
   const onImportProjects = useCallback(async (ps: ResumeProject[]) => {
-    await store.bulkPutProjects(ps);
+    const withOrder = ps.map((p, i) => ({ ...p, order: p.order ?? i }));
+    await store.bulkPutProjects(withOrder);
     setProjects(await store.listProjects());
   }, []);
 
@@ -155,7 +177,11 @@ export default function ResumeBuilderPage() {
       // basics are edited directly on the profile via the header, so they are
       // already current — don't overwrite them with the draft's stale copy.
       summary: draft.summary,
-      skills: draft.skills.map((s) => ({ category: s.category, items: [...s.items] })),
+      skills: draft.skills.map((s) => ({
+        category: s.category,
+        items: [...s.items],
+        bold: s.bold ? [...s.bold] : [],
+      })),
       experience: prev.experience.map((job) => {
         const dj = draft.experience.find((x) => x.id === job.id);
         return dj ? { ...job, bullets: [...dj.bullets], title: dj.title, company: dj.company, location: dj.location, start: dj.start, end: dj.end } : job;
@@ -241,6 +267,7 @@ export default function ResumeBuilderPage() {
                 projects={projects}
                 onSaveProject={onSaveProject}
                 onDeleteProject={onDeleteProject}
+                onReorderProjects={onReorderProjects}
                 onImportProjects={onImportProjects}
               />
             )}

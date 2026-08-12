@@ -17,6 +17,8 @@ export interface Basics {
 export interface SkillCategory {
   category: string; // e.g. Languages, Frontend, Backend
   items: string[];
+  /** Skill names rendered bold on the resume. Omitted/empty = all regular weight. */
+  bold?: string[];
 }
 
 export interface Experience {
@@ -38,6 +40,8 @@ export interface ResumeProject {
   stack: string[];
   bullets: string[];
   caseStudy: string;
+  /** Lower = earlier in lists. Older stored projects may omit it. */
+  order?: number;
 }
 
 export interface Certification {
@@ -102,7 +106,7 @@ export interface SuggestedSkill {
 export interface SummarySkillsTweaks {
   summary: string;
   categories: SkillCategory[]; // working arrangement of the profile's skills
-  checked: string[]; // skill items included on the resume
+  checked: string[]; // skill items marked bold on the resume (filled badges)
   addChecked: string[]; // suggested-addition keys included on the resume
   savedAdditions: string[]; // suggested-addition keys already written to the profile
 }

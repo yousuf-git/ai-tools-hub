@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+import { Mail, Phone, MapPin, Globe, Github, Linkedin } from "lucide-react";
 import Editable from "./Editable";
 import type { Basics, ResumeDraft } from "@/lib/resume/types";
 
@@ -21,8 +23,6 @@ const splitCsv = (s: string) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
-// Turn a raw field value into an href for the exported PDF. Empty → undefined
-// so the field renders as plain editable text (no dangling link).
 const httpHref = (v: string) => {
   const t = v.trim();
   if (!t) return undefined;
@@ -40,14 +40,12 @@ const mailHref = (v: string) => {
 export default function ResumePreview({ draft, patch, basics, patchBasics }: Props) {
   return (
     <>
-      {/* Template fonts */}
       <link
         href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet"
       />
 
       <div className="resume-sheet resume-print-area">
-        {/* ===== Header ===== */}
         <header>
           <Editable
             tag="div"
@@ -63,55 +61,78 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
             placeholder="Your Role"
             onCommit={(v) => patchBasics((b) => void (b.role = v))}
           />
-          <div className="contact">
-            <Editable
-              value={basics.email}
-              href={mailHref(basics.email)}
-              placeholder="email"
-              onCommit={(v) => patchBasics((b) => void (b.email = v))}
-            />
-            <Editable
-              value={basics.phone}
-              placeholder="phone"
-              onCommit={(v) => patchBasics((b) => void (b.phone = v))}
-            />
-            <Editable
-              value={basics.location}
-              placeholder="location"
-              onCommit={(v) => patchBasics((b) => void (b.location = v))}
-            />
-            <span>
+          <div className="contact contact-row">
+            <span className="contact-item">
+              <Mail className="contact-icon" aria-hidden />
+              <Editable
+                value={basics.email}
+                href={mailHref(basics.email)}
+                placeholder="email"
+                onCommit={(v) => patchBasics((b) => void (b.email = v))}
+              />
+            </span>
+            <span className="contact-item">
+              <Phone className="contact-icon" aria-hidden />
+              <Editable
+                value={basics.phone}
+                placeholder="phone"
+                onCommit={(v) => patchBasics((b) => void (b.phone = v))}
+              />
+            </span>
+            <span className="contact-item">
+              <MapPin className="contact-icon" aria-hidden />
+              <Editable
+                value={basics.location}
+                placeholder="location"
+                onCommit={(v) => patchBasics((b) => void (b.location = v))}
+              />
+            </span>
+          </div>
+          <div className="contact contact-row contact-socials">
+            <span className="contact-item">
+              <Globe className="contact-icon" aria-hidden />
               <Editable
                 value={basics.portfolio}
                 href={httpHref(basics.portfolio)}
                 placeholder="portfolio"
                 onCommit={(v) => patchBasics((b) => void (b.portfolio = v))}
               />
+              <span className="contact-arrow" aria-hidden>
+                ↗
+              </span>
             </span>
-            <span>
+            <span className="contact-item">
+              <Github className="contact-icon" aria-hidden />
               <Editable
                 value={basics.github}
                 href={httpHref(basics.github)}
                 placeholder="github"
                 onCommit={(v) => patchBasics((b) => void (b.github = v))}
               />
+              <span className="contact-arrow" aria-hidden>
+                ↗
+              </span>
             </span>
-            <span>
+            <span className="contact-item">
+              <Linkedin className="contact-icon" aria-hidden />
               <Editable
                 value={basics.linkedin}
                 href={httpHref(basics.linkedin)}
                 placeholder="linkedin"
                 onCommit={(v) => patchBasics((b) => void (b.linkedin = v))}
               />
+              <span className="contact-arrow" aria-hidden>
+                ↗
+              </span>
             </span>
           </div>
         </header>
 
-        {/* ===== Summary ===== */}
         <section>
           <h2>Summary</h2>
           <Editable
             tag="p"
+            className="summary-text"
             multiline
             value={draft.summary}
             placeholder="Professional summary…"
@@ -119,7 +140,6 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
           />
         </section>
 
-        {/* ===== Technical Skills ===== */}
         {draft.skills.length > 0 && (
           <section>
             <h2>Technical Skills</h2>
@@ -131,18 +151,21 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
                   placeholder="Category"
                   onCommit={(v) => patch((d) => void (d.skills[i].category = v))}
                 />
-                <Editable
-                  className="skill-items"
-                  value={row.items.join(", ")}
-                  placeholder="comma, separated, skills"
-                  onCommit={(v) => patch((d) => void (d.skills[i].items = splitCsv(v)))}
+                <SkillItemsField
+                  items={row.items}
+                  bold={row.bold ?? []}
+                  onCommit={(items, bold) =>
+                    patch((d) => {
+                      d.skills[i].items = items;
+                      d.skills[i].bold = bold;
+                    })
+                  }
                 />
               </div>
             ))}
           </section>
         )}
 
-        {/* ===== Experience ===== */}
         {draft.experience.length > 0 && (
           <section>
             <h2>Experience</h2>
@@ -204,7 +227,6 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
           </section>
         )}
 
-        {/* ===== Projects ===== */}
         {draft.projects.length > 0 && (
           <section>
             <h2>Projects</h2>
@@ -219,16 +241,15 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
                     />
                     {(proj.liveUrl || proj.codeUrl) && (
                       <span className="ext">
-                        ↗{" "}
                         {proj.liveUrl && (
                           <a href={httpHref(proj.liveUrl)} target="_blank" rel="noopener noreferrer">
-                            live
+                            ↗ live
                           </a>
                         )}
-                        {proj.liveUrl && proj.codeUrl && " · "}
+                        {proj.liveUrl && proj.codeUrl && <span className="ext-sep">·</span>}
                         {proj.codeUrl && (
                           <a href={httpHref(proj.codeUrl)} target="_blank" rel="noopener noreferrer">
-                            code
+                            ↗ code
                           </a>
                         )}
                       </span>
@@ -271,13 +292,12 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
           </section>
         )}
 
-        {/* ===== Certifications ===== */}
         {draft.certifications.length > 0 && (
           <section>
             <h2>Certifications</h2>
             {draft.certifications.map((c, i) => (
               <div className="line-item" key={c.id}>
-                <span>
+                <span className="line-item-main">
                   <Editable
                     tag="strong"
                     value={c.name}
@@ -292,27 +312,27 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
                       onCommit={(v) => patch((d) => void (d.certifications[i].issuer = v))}
                     />
                   </span>
+                </span>
+                <span className="line-item-end">
                   {c.link?.trim() && (
                     <span className="ext">
-                      ↗{" "}
                       <a href={httpHref(c.link)} target="_blank" rel="noopener noreferrer">
-                        verify
+                        ↗ verify
                       </a>
                     </span>
                   )}
+                  <Editable
+                    className="entry-meta"
+                    value={c.year}
+                    placeholder="Year"
+                    onCommit={(v) => patch((d) => void (d.certifications[i].year = v))}
+                  />
                 </span>
-                <Editable
-                  className="entry-meta"
-                  value={c.year}
-                  placeholder="Year"
-                  onCommit={(v) => patch((d) => void (d.certifications[i].year = v))}
-                />
               </div>
             ))}
           </section>
         )}
 
-        {/* ===== Education ===== */}
         {draft.education.length > 0 && (
           <section>
             <h2>Education</h2>
@@ -365,4 +385,68 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
       </div>
     </>
   );
+}
+
+/** Comma-separated skills with bold names; edits as plain CSV, preserves bold for kept names. */
+function SkillItemsField({
+  items,
+  bold,
+  onCommit,
+}: {
+  items: string[];
+  bold: string[];
+  onCommit: (items: string[], bold: string[]) => void;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const plain = items.join(", ");
+  const boldSet = new Set(bold);
+
+  const renderHtml = () =>
+    items
+      .map((item) => (boldSet.has(item) ? `<strong>${escapeHtml(item)}</strong>` : escapeHtml(item)))
+      .join(", ");
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || document.activeElement === el) return;
+    el.innerHTML = renderHtml();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plain, bold.join("|")]);
+
+  return (
+    <span
+      ref={ref}
+      contentEditable
+      suppressContentEditableWarning
+      spellCheck={false}
+      role="textbox"
+      aria-label="Skills"
+      data-placeholder="comma, separated, skills"
+      className="editable skill-items"
+      onFocus={() => {
+        if (ref.current) ref.current.innerText = plain;
+      }}
+      onBlur={() => {
+        const text = ref.current?.innerText.replace(/\u00a0/g, " ").trim() ?? "";
+        const next = splitCsv(text);
+        const nextBold = next.filter((n) => boldSet.has(n));
+        if (text !== plain || nextBold.length !== bold.length) onCommit(next, nextBold);
+        else if (ref.current) ref.current.innerHTML = renderHtml();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          ref.current?.blur();
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          if (ref.current) ref.current.innerText = plain;
+          ref.current?.blur();
+        }
+      }}
+    />
+  );
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

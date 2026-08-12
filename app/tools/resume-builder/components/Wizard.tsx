@@ -7,6 +7,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ArrowUp,
   ArrowDown,
   Check,
@@ -60,7 +61,9 @@ function seedSummarySkills(
     categories: (prev?.categories.length ? prev.categories : profile.skills).map((c) => ({
       category: c.category,
       items: [...c.items],
+      bold: [...(c.bold ?? [])],
     })),
+    // AI picks become the bold (filled) set; all arranged skills still land on the resume.
     checked: res.selectedSkills.map((s) => s.item),
     addChecked: [],
     savedAdditions: [...(prev?.savedAdditions ?? [])],
@@ -433,7 +436,7 @@ function StepSummarySkills({
     const p: Profile = structuredClone(profile);
     let row = p.skills.find((s) => s.category === a.category);
     if (!row) {
-      row = { category: a.category, items: [] };
+      row = { category: a.category, items: [], bold: [] };
       p.skills.push(row);
     }
     if (!row.items.includes(a.item)) row.items.push(a.item);
@@ -443,21 +446,28 @@ function StepSummarySkills({
 
   const apply = () => {
     if (!t) return;
-    // Build draft.skills from the arranged categories, keeping only selected
-    // skills, then fold in any checked suggested additions.
+    // All arranged skills land on the resume; filled/checked badges → bold.
+    // Checked suggested additions are appended (bold by default).
     const newSkills: SkillCategory[] = [];
     t.categories.forEach((row) => {
-      const kept = row.items.filter((it) => t.checked.includes(it));
-      if (kept.length) newSkills.push({ category: row.category, items: kept });
+      if (!row.items.length) return;
+      newSkills.push({
+        category: row.category,
+        items: [...row.items],
+        bold: row.items.filter((it) => t.checked.includes(it)),
+      });
     });
     (res?.suggestedAdditions || []).forEach((a) => {
       if (!t.addChecked.includes(skillKey(a.category, a.item))) return;
       let row = newSkills.find((s) => s.category === a.category);
       if (!row) {
-        row = { category: a.category, items: [] };
+        row = { category: a.category, items: [], bold: [] };
         newSkills.push(row);
       }
-      if (!row.items.includes(a.item)) row.items.push(a.item);
+      if (!row.items.includes(a.item)) {
+        row.items.push(a.item);
+        row.bold = [...(row.bold ?? []), a.item];
+      }
     });
     patch((d) => {
       d.summary = t.summary;
@@ -490,11 +500,11 @@ function StepSummarySkills({
           </div>
 
           <div>
-            <Label className="text-xs">From your profile (AI pre-checked the relevant ones)</Label>
+            <Label className="text-xs">From your profile (AI pre-fills the ones to bold)</Label>
             <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
-              Tap a skill to include or exclude it. Drag to reorder, drop onto another category to move it, or drag the
-              grip to reorder categories. Rename a category by typing in its name. This arrangement is what lands on
-              your resume.
+              Filled = bold on the resume; unfilled = regular weight. All skills in these categories land on the resume.
+              Drag to reorder, drop onto another category to move, or drag the grip to reorder categories. Categories
+              start collapsed — expand to edit.
             </p>
             <SkillsBadgeBoard
               mode="select"
@@ -581,6 +591,9 @@ function StepProjects({
   const edits = res ? wizard.tweaks.projects ?? seedProjects(res, projects) : [];
   // Which saved projects get sent to the AI (defaults to all).
   const send = wizard.tweaks.sendProjects ?? projects.map((p) => p.id);
+  const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
+  const isOpen = (id: string) => openIds[id] ?? false;
+  const toggleOpen = (id: string) => setOpenIds((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
 
   const setEdits = (recipe: (prev: ProjectTweak[]) => ProjectTweak[]) =>
     updateWizard((w) => {
@@ -686,14 +699,32 @@ function StepProjects({
           </div>
           {edits.map((e, idx) => {
             const orig = projects.find((p) => p.id === e.id);
+            const expanded = isOpen(e.id);
             return (
-              <div key={e.id} className={`rounded-lg border p-3 space-y-2 ${e.include ? "" : "opacity-60"}`}>
-                <div className="flex items-start justify-between gap-2">
-                  <label className="flex items-center gap-2 text-sm font-medium">
-                    <input type="checkbox" checked={e.include} onChange={() => setEdit(e.id, (x) => void (x.include = !x.include))} />
-                    Include
-                    <span className="text-xs font-normal text-muted-foreground">· {e.reason}</span>
-                  </label>
+              <div key={e.id} className={`rounded-lg border ${e.include ? "" : "opacity-60"}`}>
+                <div className="flex items-center gap-2 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={e.include}
+                    onChange={() => setEdit(e.id, (x) => void (x.include = !x.include))}
+                    aria-label="Include project"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleOpen(e.id)}
+                    aria-expanded={expanded}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                  >
+                    {expanded ? (
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="truncate text-sm font-medium">{e.title || "Untitled"}</span>
+                    {e.reason && (
+                      <span className="truncate text-xs font-normal text-muted-foreground">· {e.reason}</span>
+                    )}
+                  </button>
                   <div className="flex shrink-0 gap-1">
                     <button
                       type="button"
@@ -715,22 +746,36 @@ function StepProjects({
                     </button>
                   </div>
                 </div>
-                <input
-                  className="w-full text-sm font-medium bg-transparent border rounded px-2 py-1"
-                  value={e.title}
-                  onChange={(ev) => setEdit(e.id, (x) => void (x.title = ev.target.value))}
-                />
-                <Textarea rows={1} className="text-xs min-h-[36px]" value={e.stack} onChange={(ev) => setEdit(e.id, (x) => void (x.stack = ev.target.value))} />
-                <Textarea rows={3} className="text-xs" value={e.bullets} onChange={(ev) => setEdit(e.id, (x) => void (x.bullets = ev.target.value))} />
-                {orig && (
-                  <details className="text-xs text-muted-foreground">
-                    <summary className="cursor-pointer">original bullets</summary>
-                    <ul className="list-disc ml-4 mt-1">
-                      {orig.bullets.map((b, i) => (
-                        <li key={i}>{b}</li>
-                      ))}
-                    </ul>
-                  </details>
+                {expanded && (
+                  <div className="space-y-2 border-t p-3">
+                    <input
+                      className="w-full text-sm font-medium bg-transparent border rounded px-2 py-1"
+                      value={e.title}
+                      onChange={(ev) => setEdit(e.id, (x) => void (x.title = ev.target.value))}
+                    />
+                    <Textarea
+                      rows={1}
+                      className="text-xs min-h-[36px]"
+                      value={e.stack}
+                      onChange={(ev) => setEdit(e.id, (x) => void (x.stack = ev.target.value))}
+                    />
+                    <Textarea
+                      rows={3}
+                      className="text-xs"
+                      value={e.bullets}
+                      onChange={(ev) => setEdit(e.id, (x) => void (x.bullets = ev.target.value))}
+                    />
+                    {orig && (
+                      <details className="text-xs text-muted-foreground">
+                        <summary className="cursor-pointer">original bullets</summary>
+                        <ul className="list-disc ml-4 mt-1">
+                          {orig.bullets.map((b, i) => (
+                            <li key={i}>{b}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -925,6 +970,9 @@ function StepCertifications({
 }) {
   const res = wizard.raw.certifications;
   const checked = wizard.tweaks.certifications ?? res?.selected.map((s) => s.id) ?? [];
+  const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
+  const isOpen = (id: string) => openIds[id] ?? false;
+  const toggleOpen = (id: string) => setOpenIds((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }));
 
   // Display/apply order — user-moved ids first, any certs added since appended in profile order.
   const order = wizard.tweaks.certOrder ?? [];
@@ -965,39 +1013,63 @@ function StepCertifications({
         <p className="text-sm text-muted-foreground italic">No certifications on your profile.</p>
       ) : (
         <div className="space-y-2">
-          {orderedCerts.map((c, idx) => (
-            <div key={c.id} className="flex items-start gap-2 rounded-md border p-2 text-sm">
-              <label className="flex flex-1 items-start gap-2">
-                <input type="checkbox" className="mt-0.5" checked={checked.includes(c.id)} onChange={() => toggle(c.id)} />
-                <span>
-                  <span className="font-medium">{c.name}</span>{" "}
-                  {c.issuer && <span className="text-xs text-muted-foreground">· {c.issuer}</span>}{" "}
-                  <span className="text-xs text-muted-foreground">· {c.year}</span>
-                  {reasonFor(c.id) && <span className="block text-xs text-primary mt-0.5">{reasonFor(c.id)}</span>}
-                </span>
-              </label>
-              <div className="flex shrink-0 gap-1">
-                <button
-                  type="button"
-                  onClick={() => move(c.id, -1)}
-                  disabled={idx === 0}
-                  aria-label="Move up"
-                  className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ArrowUp className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(c.id, 1)}
-                  disabled={idx === orderedCerts.length - 1}
-                  aria-label="Move down"
-                  className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <ArrowDown className="h-3.5 w-3.5" />
-                </button>
+          {orderedCerts.map((c, idx) => {
+            const expanded = isOpen(c.id);
+            const reason = reasonFor(c.id);
+            return (
+              <div key={c.id} className="rounded-md border text-sm">
+                <div className="flex items-center gap-2 px-2 py-1.5">
+                  <input
+                    type="checkbox"
+                    checked={checked.includes(c.id)}
+                    onChange={() => toggle(c.id)}
+                    aria-label={`Include ${c.name}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleOpen(c.id)}
+                    aria-expanded={expanded}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                  >
+                    {expanded ? (
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="truncate font-medium">{c.name}</span>
+                    {(c.issuer || c.year) && (
+                      <span className="truncate text-xs text-muted-foreground">
+                        {[c.issuer, c.year].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
+                  </button>
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => move(c.id, -1)}
+                      disabled={idx === 0}
+                      aria-label="Move up"
+                      className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => move(c.id, 1)}
+                      disabled={idx === orderedCerts.length - 1}
+                      aria-label="Move down"
+                      className="rounded border p-1 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                {expanded && reason && (
+                  <p className="border-t px-2 py-1.5 text-xs text-primary">{reason}</p>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
           <Button size="sm" variant="secondary" onClick={apply}>
             <Check className="w-4 h-4 mr-1.5" /> Apply selected
           </Button>

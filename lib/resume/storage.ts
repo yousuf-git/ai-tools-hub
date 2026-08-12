@@ -77,7 +77,8 @@ export async function listProjects(): Promise<ResumeProject[]> {
   const all = await tx<ResumeProject[]>(PROJECTS_STORE, "readonly", (s) =>
     s.getAll() as IDBRequest<ResumeProject[]>
   );
-  return all ?? [];
+  const list = all ?? [];
+  return [...list].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 }
 
 export async function putProject(p: ResumeProject): Promise<void> {

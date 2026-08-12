@@ -60,22 +60,46 @@
   letter-spacing: 0.02em;
 }
 .resume-sheet .contact {
-  margin-top: 7px;
+  margin-top: 6px;
   font-size: var(--fs-small);
   color: var(--ink-soft);
+}
+.resume-sheet .contact-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 0;
+  align-items: center;
+  gap: 6px 22px;
 }
-.resume-sheet .contact > *:not(:first-child)::before {
-  content: "·";
-  margin: 0 7px;
-  color: var(--hairline);
+.resume-sheet .contact-socials {
+  margin-top: 4px;
+}
+.resume-sheet .contact-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.resume-sheet .contact-icon {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  color: var(--accent);
+  stroke-width: 2.25;
+}
+.resume-sheet .contact-arrow {
+  color: var(--accent);
+  font-size: 8pt;
+  line-height: 1;
+  margin-left: 1px;
 }
 /* Contact links keep the muted contact color — they're clickable in the PDF,
    not visually loud. */
 .resume-sheet .contact a {
   color: inherit;
+}
+.resume-sheet .summary-text {
+  text-align: justify;
+  hyphens: auto;
 }
 
 /* ---- Sections ---- */
@@ -125,6 +149,9 @@
 .resume-sheet .skill-items {
   flex: 1;
 }
+.resume-sheet .skill-items strong {
+  font-weight: 600;
+}
 
 /* ---- Entries (experience / projects) ---- */
 .resume-sheet .entry {
@@ -151,11 +178,16 @@
 .resume-sheet .entry-title .ext {
   color: var(--accent);
   font-size: 8.5pt;
-  margin-left: 4px;
+  margin-left: 10px;
   font-weight: 500;
+  letter-spacing: 0.01em;
 }
 .resume-sheet .entry-title .ext a {
   color: var(--accent);
+}
+.resume-sheet .entry-title .ext-sep {
+  margin: 0 7px;
+  color: var(--hairline);
 }
 .resume-sheet .entry-meta {
   font-size: var(--fs-small);
@@ -191,6 +223,15 @@
   margin-bottom: 5px;
   break-inside: avoid;
 }
+.resume-sheet .line-item-main {
+  min-width: 0;
+}
+.resume-sheet .line-item-end {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-shrink: 0;
+}
 .resume-sheet .line-item strong {
   font-family: "Space Grotesk", sans-serif;
   font-weight: 500;
@@ -202,7 +243,6 @@
 .resume-sheet .line-item .ext {
   color: var(--accent);
   font-size: 8.5pt;
-  margin-left: 4px;
   font-weight: 500;
 }
 .resume-sheet .line-item .ext a {
