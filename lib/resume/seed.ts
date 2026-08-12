@@ -154,11 +154,7 @@ export function draftFromProfile(profile: Profile, projects: ResumeProject[]): R
   return {
     basics: { ...profile.basics },
     summary: profile.summary,
-    skills: profile.skills.map((s) => ({
-      category: s.category,
-      items: [...s.items],
-      bold: [...(s.bold ?? [])],
-    })),
+    skills: profile.skills.map((s) => ({ category: s.category, items: [...s.items] })),
     experience: profile.experience.map((e) => ({ ...e, bullets: [...e.bullets] })),
     projects: draftProjects,
     certifications: profile.certifications.map((c) => ({ ...c })),

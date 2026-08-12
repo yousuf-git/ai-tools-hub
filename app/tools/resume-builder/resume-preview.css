@@ -149,9 +149,6 @@
 .resume-sheet .skill-items {
   flex: 1;
 }
-.resume-sheet .skill-items strong {
-  font-weight: 600;
-}
 
 /* ---- Entries (experience / projects) ---- */
 .resume-sheet .entry {

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { Mail, Phone, MapPin, Globe, Github, Linkedin } from "lucide-react";
 import Editable from "./Editable";
 import type { Basics, ResumeDraft } from "@/lib/resume/types";
@@ -151,15 +150,11 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
                   placeholder="Category"
                   onCommit={(v) => patch((d) => void (d.skills[i].category = v))}
                 />
-                <SkillItemsField
-                  items={row.items}
-                  bold={row.bold ?? []}
-                  onCommit={(items, bold) =>
-                    patch((d) => {
-                      d.skills[i].items = items;
-                      d.skills[i].bold = bold;
-                    })
-                  }
+                <Editable
+                  className="skill-items"
+                  value={row.items.join(", ")}
+                  placeholder="comma, separated, skills"
+                  onCommit={(v) => patch((d) => void (d.skills[i].items = splitCsv(v)))}
                 />
               </div>
             ))}
@@ -385,68 +380,4 @@ export default function ResumePreview({ draft, patch, basics, patchBasics }: Pro
       </div>
     </>
   );
-}
-
-/** Comma-separated skills with bold names; edits as plain CSV, preserves bold for kept names. */
-function SkillItemsField({
-  items,
-  bold,
-  onCommit,
-}: {
-  items: string[];
-  bold: string[];
-  onCommit: (items: string[], bold: string[]) => void;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const plain = items.join(", ");
-  const boldSet = new Set(bold);
-
-  const renderHtml = () =>
-    items
-      .map((item) => (boldSet.has(item) ? `<strong>${escapeHtml(item)}</strong>` : escapeHtml(item)))
-      .join(", ");
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || document.activeElement === el) return;
-    el.innerHTML = renderHtml();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plain, bold.join("|")]);
-
-  return (
-    <span
-      ref={ref}
-      contentEditable
-      suppressContentEditableWarning
-      spellCheck={false}
-      role="textbox"
-      aria-label="Skills"
-      data-placeholder="comma, separated, skills"
-      className="editable skill-items"
-      onFocus={() => {
-        if (ref.current) ref.current.innerText = plain;
-      }}
-      onBlur={() => {
-        const text = ref.current?.innerText.replace(/\u00a0/g, " ").trim() ?? "";
-        const next = splitCsv(text);
-        const nextBold = next.filter((n) => boldSet.has(n));
-        if (text !== plain || nextBold.length !== bold.length) onCommit(next, nextBold);
-        else if (ref.current) ref.current.innerHTML = renderHtml();
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          ref.current?.blur();
-        } else if (e.key === "Escape") {
-          e.preventDefault();
-          if (ref.current) ref.current.innerText = plain;
-          ref.current?.blur();
-        }
-      }}
-    />
-  );
-}
-
-function escapeHtml(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }

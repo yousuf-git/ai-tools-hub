@@ -32,14 +32,13 @@ const SEP = "::@::";
 const itemId = (category: string, item: string) => `${category}${SEP}${item}`;
 
 const cloneCats = (cats: SkillCategory[]): SkillCategory[] =>
-  cats.map((c) => ({ category: c.category, items: [...c.items], bold: [...(c.bold ?? [])] }));
+  cats.map((c) => ({ category: c.category, items: [...c.items] }));
 
 interface Props {
   categories: SkillCategory[];
   onChange: (next: SkillCategory[]) => void;
-  /** `select` = toggle bold + reorder (wizard). `edit` = add/remove + bold + categories (profile). */
+  /** `select` = toggle include/exclude + reorder (wizard). `edit` = add/remove skills + categories (profile). */
   mode: "select" | "edit";
-  /** When set, overrides per-category `bold` for the filled visual (wizard `checked` list). */
   isSelected?: (category: string, item: string) => boolean;
   onToggle?: (category: string, item: string) => void;
 }
@@ -47,7 +46,7 @@ interface Props {
 /**
  * Drag-and-drop skills organiser rendered as badges. Reorder a skill within its
  * category, drop it onto another category, or drag the grip to reorder whole
- * categories. Filled badge = bold on resume; unfilled = regular weight.
+ * categories. In `select` mode, filled = include on resume, unfilled = leave off.
  */
 export default function SkillsBadgeBoard({ categories, onChange, mode, isSelected, onToggle }: Props) {
   const [cats, setCats] = useState<SkillCategory[]>(() => cloneCats(categories));
@@ -75,11 +74,7 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
     setOpenCats((prev) => ({ ...prev, [category]: !(prev[category] ?? false) }));
 
   const commit = (next: SkillCategory[]) => {
-    const cleaned = next.map((c) => ({
-      category: c.category,
-      items: [...c.items],
-      bold: (c.bold ?? []).filter((b) => c.items.includes(b)),
-    }));
+    const cleaned = next.map((c) => ({ category: c.category, items: [...c.items] }));
     setCats(cleaned);
     onChange(cleaned);
   };
@@ -106,20 +101,12 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
       const overId = String(e.over!.id);
       const overIndex = toCat.items.findIndex((it) => itemId(to, it) === overId);
       const insertAt = overIndex >= 0 ? overIndex : toCat.items.length;
-      const wasBold = (fromCat.bold ?? []).includes(skill);
       return prev.map((c) => {
-        if (c.category === from) {
-          return {
-            ...c,
-            items: c.items.filter((it) => it !== skill),
-            bold: (c.bold ?? []).filter((b) => b !== skill),
-          };
-        }
+        if (c.category === from) return { ...c, items: c.items.filter((it) => it !== skill) };
         if (c.category === to) {
           const items = [...c.items];
           items.splice(insertAt, 0, skill);
-          const bold = wasBold ? [...(c.bold ?? []), skill] : [...(c.bold ?? [])];
-          return { ...c, items, bold };
+          return { ...c, items };
         }
         return c;
       });
@@ -167,13 +154,7 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
     });
   };
   const deleteSkill = (category: string, item: string) =>
-    commit(
-      cats.map((c) =>
-        c.category === category
-          ? { ...c, items: c.items.filter((i) => i !== item), bold: (c.bold ?? []).filter((b) => b !== item) }
-          : c
-      )
-    );
+    commit(cats.map((c) => (c.category === category ? { ...c, items: c.items.filter((i) => i !== item) } : c)));
   const addSkill = (category: string, value: string) => {
     const v = value.trim();
     if (!v) return;
@@ -184,28 +165,12 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
   const addCategory = (name: string) => {
     const v = name.trim();
     if (!v || cats.some((c) => c.category === v)) return;
-    commit([{ category: v, items: [], bold: [] }, ...cats]);
+    commit([{ category: v, items: [] }, ...cats]);
     setOpenCats((prev) => ({ ...prev, [v]: true }));
-  };
-  const toggleBold = (category: string, item: string) => {
-    if (onToggle) {
-      onToggle(category, item);
-      return;
-    }
-    commit(
-      cats.map((c) => {
-        if (c.category !== category) return c;
-        const bold = c.bold ?? [];
-        return {
-          ...c,
-          bold: bold.includes(item) ? bold.filter((b) => b !== item) : [...bold, item],
-        };
-      })
-    );
   };
 
   const filled = (category: string, item: string) =>
-    isSelected ? isSelected(category, item) : (cats.find((c) => c.category === category)?.bold ?? []).includes(item);
+    mode === "select" ? (isSelected ? isSelected(category, item) : true) : true;
 
   const activeLabel = activeId && !isCategory(activeId) ? activeId.split(SEP)[1] : activeId;
   const activeFilled = activeId && !isCategory(activeId)
@@ -245,7 +210,7 @@ export default function SkillsBadgeBoard({ categories, onChange, mode, isSelecte
                       label={it}
                       mode={mode}
                       selected={filled(c.category, it)}
-                      onToggle={() => toggleBold(c.category, it)}
+                      onToggle={onToggle ? () => onToggle(c.category, it) : undefined}
                       onDelete={() => deleteSkill(c.category, it)}
                     />
                   ))}
@@ -371,7 +336,7 @@ function SortableSkill({
   label: string;
   mode: "select" | "edit";
   selected: boolean;
-  onToggle: () => void;
+  onToggle?: () => void;
   onDelete: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -379,13 +344,9 @@ function SortableSkill({
     <span
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
-      onClick={(e) => {
-        // Don't toggle when clicking the delete control.
-        if ((e.target as HTMLElement).closest("button")) return;
-        onToggle();
-      }}
-      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium touch-none transition-colors cursor-pointer ${
-        mode === "edit" ? "active:cursor-grabbing" : ""
+      onClick={mode === "select" ? onToggle : undefined}
+      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium touch-none transition-colors ${
+        mode === "select" ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
       } ${
         isDragging
           ? "opacity-40 border-primary"
@@ -396,7 +357,7 @@ function SortableSkill({
       {...attributes}
       {...listeners}
     >
-      {selected && <Check className="h-3 w-3 shrink-0 opacity-90" />}
+      {mode === "select" && selected && <Check className="h-3 w-3 shrink-0 opacity-90" />}
       {label}
       {mode === "edit" && (
         <button

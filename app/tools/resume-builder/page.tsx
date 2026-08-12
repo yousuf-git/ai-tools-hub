@@ -177,11 +177,7 @@ export default function ResumeBuilderPage() {
       // basics are edited directly on the profile via the header, so they are
       // already current — don't overwrite them with the draft's stale copy.
       summary: draft.summary,
-      skills: draft.skills.map((s) => ({
-        category: s.category,
-        items: [...s.items],
-        bold: s.bold ? [...s.bold] : [],
-      })),
+      skills: draft.skills.map((s) => ({ category: s.category, items: [...s.items] })),
       experience: prev.experience.map((job) => {
         const dj = draft.experience.find((x) => x.id === job.id);
         return dj ? { ...job, bullets: [...dj.bullets], title: dj.title, company: dj.company, location: dj.location, start: dj.start, end: dj.end } : job;

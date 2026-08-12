@@ -61,9 +61,7 @@ function seedSummarySkills(
     categories: (prev?.categories.length ? prev.categories : profile.skills).map((c) => ({
       category: c.category,
       items: [...c.items],
-      bold: [...(c.bold ?? [])],
     })),
-    // AI picks become the bold (filled) set; all arranged skills still land on the resume.
     checked: res.selectedSkills.map((s) => s.item),
     addChecked: [],
     savedAdditions: [...(prev?.savedAdditions ?? [])],
@@ -436,7 +434,7 @@ function StepSummarySkills({
     const p: Profile = structuredClone(profile);
     let row = p.skills.find((s) => s.category === a.category);
     if (!row) {
-      row = { category: a.category, items: [], bold: [] };
+      row = { category: a.category, items: [] };
       p.skills.push(row);
     }
     if (!row.items.includes(a.item)) row.items.push(a.item);
@@ -446,28 +444,21 @@ function StepSummarySkills({
 
   const apply = () => {
     if (!t) return;
-    // All arranged skills land on the resume; filled/checked badges → bold.
-    // Checked suggested additions are appended (bold by default).
+    // Build draft.skills from the arranged categories, keeping only selected
+    // skills, then fold in any checked suggested additions.
     const newSkills: SkillCategory[] = [];
     t.categories.forEach((row) => {
-      if (!row.items.length) return;
-      newSkills.push({
-        category: row.category,
-        items: [...row.items],
-        bold: row.items.filter((it) => t.checked.includes(it)),
-      });
+      const kept = row.items.filter((it) => t.checked.includes(it));
+      if (kept.length) newSkills.push({ category: row.category, items: kept });
     });
     (res?.suggestedAdditions || []).forEach((a) => {
       if (!t.addChecked.includes(skillKey(a.category, a.item))) return;
       let row = newSkills.find((s) => s.category === a.category);
       if (!row) {
-        row = { category: a.category, items: [], bold: [] };
+        row = { category: a.category, items: [] };
         newSkills.push(row);
       }
-      if (!row.items.includes(a.item)) {
-        row.items.push(a.item);
-        row.bold = [...(row.bold ?? []), a.item];
-      }
+      if (!row.items.includes(a.item)) row.items.push(a.item);
     });
     patch((d) => {
       d.summary = t.summary;
@@ -500,11 +491,10 @@ function StepSummarySkills({
           </div>
 
           <div>
-            <Label className="text-xs">From your profile (AI pre-fills the ones to bold)</Label>
+            <Label className="text-xs">From your profile (AI pre-checked the relevant ones)</Label>
             <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
-              Filled = bold on the resume; unfilled = regular weight. All skills in these categories land on the resume.
-              Drag to reorder, drop onto another category to move, or drag the grip to reorder categories. Categories
-              start collapsed — expand to edit.
+              Filled = include on the resume; unfilled = leave off. Drag to reorder, drop onto another category to
+              move, or drag the grip to reorder categories. Categories start collapsed — expand to edit.
             </p>
             <SkillsBadgeBoard
               mode="select"

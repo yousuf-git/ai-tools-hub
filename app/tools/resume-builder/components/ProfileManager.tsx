@@ -205,8 +205,8 @@ export default function ProfileManager({
 
       <Section title="Skills" {...sectionProps("skills")}>
         <p className="mb-2 text-xs text-muted-foreground">
-          Filled badges = bold on the resume. Tap to toggle. Drag to reorder; drop onto another category to move.
-          Categories start collapsed — expand to edit.
+          Add skills as badges, drag to reorder, drop onto another category to move, or drag the grip to reorder
+          categories. Categories start collapsed — expand to edit.
         </p>
         <SkillsBadgeBoard mode="edit" categories={draft.skills} onChange={(next) => update((p) => void (p.skills = next))} />
         {draft.skills.length === 0 && (
