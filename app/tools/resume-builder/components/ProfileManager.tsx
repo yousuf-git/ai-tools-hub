@@ -6,6 +6,7 @@ import {
   Trash2,
   Download,
   Upload,
+  Eraser,
   Save,
   FolderGit2,
   RotateCcw,
@@ -19,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Profile, ResumeProject } from "@/lib/resume/types";
+import { emptyProfile } from "@/lib/resume/seed";
 import SkillsBadgeBoard from "./SkillsBadgeBoard";
 
 const uid = () =>
@@ -34,7 +36,8 @@ interface Props {
   onSaveProject: (p: ResumeProject) => void;
   onDeleteProject: (id: string) => void;
   onReorderProjects: (ids: string[]) => void;
-  onImportProjects: (ps: ResumeProject[]) => void;
+  onImportProfile: (profile: Profile | null, ps: ResumeProject[]) => void;
+  onResetProfile: () => void;
 }
 
 // Sections that use the buffered save/reset flow (Projects has its own per-card save).
@@ -55,7 +58,8 @@ export default function ProfileManager({
   onSaveProject,
   onDeleteProject,
   onReorderProjects,
-  onImportProjects,
+  onImportProfile,
+  onResetProfile,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -134,6 +138,8 @@ export default function ProfileManager({
     URL.revokeObjectURL(url);
   };
 
+  // An import replaces the profile and the saved projects outright — the local
+  // buffer is overwritten too, so a half-edited section can't survive as a merge.
   const importProfile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -141,14 +147,36 @@ export default function ProfileManager({
     reader.onload = () => {
       try {
         const parsed = JSON.parse(String(reader.result));
-        if (parsed.profile) onProfileChange(parsed.profile as Profile);
-        if (Array.isArray(parsed.projects)) onImportProjects(parsed.projects as ResumeProject[]);
+        if (!parsed.profile && !Array.isArray(parsed.projects)) {
+          alert("That file has no profile or projects in it.");
+          return;
+        }
+        if (!confirm("Replace your profile and saved projects with this file? Everything currently here is discarded.")) {
+          return;
+        }
+        if (parsed.profile) setDraft(structuredClone(parsed.profile) as Profile);
+        onImportProfile(
+          (parsed.profile as Profile) ?? null,
+          Array.isArray(parsed.projects) ? (parsed.projects as ResumeProject[]) : []
+        );
       } catch {
         alert("Invalid profile JSON.");
       }
     };
     reader.readAsText(file);
     e.target.value = "";
+  };
+
+  const resetProfile = () => {
+    if (
+      !confirm(
+        "Reset your profile? This clears your basics, summary, skills, experience, certifications, education, saved projects and the current resume draft on this device. Resumes already saved to your catalogue are not affected."
+      )
+    ) {
+      return;
+    }
+    setDraft(emptyProfile());
+    onResetProfile();
   };
 
   const sectionProps = (key: Exclude<SectionKey, "projects">) => ({
@@ -170,6 +198,15 @@ export default function ProfileManager({
           <Upload className="w-4 h-4 mr-1.5" /> Import JSON
         </Button>
         <input ref={fileRef} type="file" accept="application/json" onChange={importProfile} className="hidden" />
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          onClick={resetProfile}
+          title="Clear everything and start from scratch"
+        >
+          <Eraser className="w-4 h-4 mr-1.5" /> Reset profile
+        </Button>
       </div>
 
       <Section title="Basics" {...sectionProps("basics")}>

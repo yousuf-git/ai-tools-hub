@@ -141,6 +141,33 @@ export function seedProjects(): ResumeProject[] {
   ];
 }
 
+// A profile with nothing in it — what "Reset profile" leaves behind, and the
+// starting point when a profile is built from scratch or from an imported file.
+export function emptyProfile(): Profile {
+  return {
+    basics: { name: "", role: "", email: "", phone: "", location: "", portfolio: "", github: "", linkedin: "" },
+    summary: "",
+    skills: [],
+    experience: [],
+    certifications: [],
+    education: [],
+  };
+}
+
+// True when the draft has no body content. Basics are excluded on purpose: the
+// preview header reads them from the profile, so an otherwise blank draft that
+// carries a name is still an empty page.
+export function isEmptyDraft(draft: ResumeDraft): boolean {
+  return (
+    !draft.summary.trim() &&
+    draft.skills.length === 0 &&
+    draft.experience.length === 0 &&
+    draft.projects.length === 0 &&
+    draft.certifications.length === 0 &&
+    draft.education.length === 0
+  );
+}
+
 // Build a fresh draft from a profile + the selected projects (all included by default).
 export function draftFromProfile(profile: Profile, projects: ResumeProject[]): ResumeDraft {
   const draftProjects: DraftProject[] = projects.map((p) => ({

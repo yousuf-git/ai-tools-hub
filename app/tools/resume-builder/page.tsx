@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GEMINI_MODELS } from "@/lib/gemini";
 import type { CatalogueEntry, CatalogueSummary, Profile, ResumeProject, ResumeDraft, WizardState } from "@/lib/resume/types";
-import { seedProfile, seedProjects, draftFromProfile } from "@/lib/resume/seed";
+import { seedProfile, seedProjects, draftFromProfile, emptyProfile, isEmptyDraft } from "@/lib/resume/seed";
 import * as store from "@/lib/resume/storage";
 import ResumePreview, { type Patch } from "./components/ResumePreview";
 import ProfileManager from "./components/ProfileManager";
@@ -53,15 +53,21 @@ export default function ResumeBuilderPage() {
       let d = await store.getDraft();
       const w = await store.getWizard();
       const entry = await store.getOpenEntry();
+      const seeded = await store.getSeeded();
 
-      if (!p) {
+      // The examples are a first-run convenience only. Once they have been
+      // offered, an empty profile or project list is a deliberate state — most
+      // likely a reset — so nothing is put back.
+      if (!p && !seeded) {
         p = seedProfile();
         await store.setProfile(p);
       }
-      if (projs.length === 0) {
+      if (projs.length === 0 && !seeded) {
         projs = seedProjects();
         await store.bulkPutProjects(projs);
       }
+      if (!p) p = emptyProfile();
+      if (!seeded) await store.setSeeded();
       if (!d) {
         d = draftFromProfile(p, projs);
         await store.setDraft(d);
@@ -131,23 +137,41 @@ export default function ResumeBuilderPage() {
     });
   }, []);
 
-  const onProfileChange = useCallback((p: Profile) => setProfileState(p), []);
+  // The preview renders the draft, never the profile. While the draft still has
+  // nothing in it — a fresh reset, or a first-ever visit — profile edits flow
+  // straight through, so building from scratch shows up immediately instead of
+  // waiting for an explicit "reset draft". Once the draft holds anything, it is
+  // the user's document and is left alone.
+  const syncEmptyDraft = useCallback((p: Profile, ps: ResumeProject[]) => {
+    setDraftState((prev) => (isEmptyDraft(prev) ? draftFromProfile(p, ps) : prev));
+  }, []);
 
-  const onSaveProject = useCallback((p: ResumeProject) => {
-    setProjects((prev) => {
-      const i = prev.findIndex((x) => x.id === p.id);
+  const onProfileChange = useCallback(
+    (p: Profile) => {
+      setProfileState(p);
+      syncEmptyDraft(p, projects);
+    },
+    [projects, syncEmptyDraft]
+  );
+
+  const onSaveProject = useCallback(
+    (p: ResumeProject) => {
+      const i = projects.findIndex((x) => x.id === p.id);
+      let next: ResumeProject[];
       if (i === -1) {
         // New projects land at the top for faster editing.
-        const next = [{ ...p, order: (prev[0]?.order ?? 1) - 1 }, ...prev];
+        next = [{ ...p, order: (projects[0]?.order ?? 1) - 1 }, ...projects];
         store.putProject(next[0]);
-        return next;
+      } else {
+        next = [...projects];
+        next[i] = { ...p, order: projects[i].order ?? i };
+        store.putProject(next[i]);
       }
-      const next = [...prev];
-      next[i] = { ...p, order: prev[i].order ?? i };
-      store.putProject(next[i]);
-      return next;
-    });
-  }, []);
+      setProjects(next);
+      syncEmptyDraft(profile, next);
+    },
+    [profile, projects, syncEmptyDraft]
+  );
 
   const onDeleteProject = useCallback((id: string) => {
     store.deleteProject(id);
@@ -170,10 +194,35 @@ export default function ResumeBuilderPage() {
     });
   }, []);
 
-  const onImportProjects = useCallback(async (ps: ResumeProject[]) => {
-    const withOrder = ps.map((p, i) => ({ ...p, order: p.order ?? i }));
-    await store.bulkPutProjects(withOrder);
-    setProjects(await store.listProjects());
+  // An import is a restore, not a merge: the file's projects become the whole
+  // list, so importing into a populated profile can't leave strays behind. The
+  // draft is rebuilt in the same pass — the preview reads the draft, so without
+  // this an import would show as a header with an empty page under it.
+  const onImportProfile = useCallback(
+    async (imported: Profile | null, ps: ResumeProject[]) => {
+      const nextProfile = imported ? structuredClone(imported) : profile;
+      await store.clearProjects();
+      await store.bulkPutProjects(ps.map((p, i) => ({ ...p, order: p.order ?? i })));
+      const nextProjects = await store.listProjects();
+
+      setProfileState(nextProfile);
+      setProjects(nextProjects);
+      setDraftState(draftFromProfile(nextProfile, nextProjects));
+    },
+    [profile]
+  );
+
+  // Wipes everything held locally for this tool. The catalogue is untouched —
+  // those resumes live on the account, not in this browser.
+  const onResetProfile = useCallback(async () => {
+    const blank = emptyProfile();
+    await store.clearProjects();
+    await store.setSeeded();
+    setProfileState(blank);
+    setProjects([]);
+    setDraftState(draftFromProfile(blank, []));
+    setWizardState(emptyWizard);
+    setOpenEntryState(null);
   }, []);
 
   // Opening a catalogue entry replaces the resume on screen and the wizard run
@@ -299,7 +348,8 @@ export default function ResumeBuilderPage() {
                 onSaveProject={onSaveProject}
                 onDeleteProject={onDeleteProject}
                 onReorderProjects={onReorderProjects}
-                onImportProjects={onImportProjects}
+                onImportProfile={onImportProfile}
+                onResetProfile={onResetProfile}
               />
             )}
           </div>

@@ -8,7 +8,7 @@ const DB_VERSION = 1;
 const KV_STORE = "kv";
 const PROJECTS_STORE = "projects";
 
-type KvKey = "profile" | "draft" | "wizard" | "openEntry";
+type KvKey = "profile" | "draft" | "wizard" | "openEntry" | "seeded";
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof indexedDB !== "undefined";
@@ -76,6 +76,11 @@ export const setWizard = (w: WizardState) => kvSet("wizard", w);
 export const getOpenEntry = () => kvGet<CatalogueSummary>("openEntry");
 export const setOpenEntry = (e: CatalogueSummary | null) => kvSet("openEntry", e);
 
+// Set once the example data has been offered. Without it, emptying the projects
+// store would look like a first run and the examples would come back.
+export const getSeeded = () => kvGet<boolean>("seeded");
+export const setSeeded = () => kvSet("seeded", true);
+
 // ---- projects store ----
 export async function listProjects(): Promise<ResumeProject[]> {
   if (!isBrowser()) return [];
@@ -94,6 +99,11 @@ export async function putProject(p: ResumeProject): Promise<void> {
 export async function deleteProject(id: string): Promise<void> {
   if (!isBrowser()) return;
   await tx(PROJECTS_STORE, "readwrite", (s) => s.delete(id));
+}
+
+export async function clearProjects(): Promise<void> {
+  if (!isBrowser()) return;
+  await tx(PROJECTS_STORE, "readwrite", (s) => s.clear());
 }
 
 export async function bulkPutProjects(projects: ResumeProject[]): Promise<void> {
