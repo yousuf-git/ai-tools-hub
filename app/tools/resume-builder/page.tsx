@@ -2,17 +2,18 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { ArrowLeft, FileText, Printer, ZoomIn, ZoomOut, RotateCcw, Save, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, FileText, Printer, ZoomIn, ZoomOut, RotateCcw, Save, CheckCircle2, XCircle, Archive } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { GEMINI_MODELS } from "@/lib/gemini";
-import type { Profile, ResumeProject, ResumeDraft, WizardState } from "@/lib/resume/types";
+import type { CatalogueEntry, CatalogueSummary, Profile, ResumeProject, ResumeDraft, WizardState } from "@/lib/resume/types";
 import { seedProfile, seedProjects, draftFromProfile } from "@/lib/resume/seed";
 import * as store from "@/lib/resume/storage";
 import ResumePreview, { type Patch } from "./components/ResumePreview";
 import ProfileManager from "./components/ProfileManager";
 import Wizard from "./components/Wizard";
+import Catalogue from "./components/Catalogue";
 import "./resume-preview.css";
 
 const DEFAULT_MODEL = GEMINI_MODELS.find((m) => m.name === "gemini-3-flash-preview")?.name ?? GEMINI_MODELS[0].name;
@@ -26,9 +27,14 @@ export default function ResumeBuilderPage() {
   const [draft, setDraftState] = useState<ResumeDraft>(() => draftFromProfile(seedProfile(), []));
   const [wizard, setWizardState] = useState<WizardState>(emptyWizard);
 
+  // The catalogue entry the draft on screen came from, if any.
+  const [openEntry, setOpenEntryState] = useState<CatalogueSummary | null>(null);
+  // Set when the preview toolbar asks the Catalogue tab to open its save dialog.
+  const [pendingSave, setPendingSave] = useState(false);
+
   const [model, setModel] = useState<string>(DEFAULT_MODEL);
   const [zoom, setZoom] = useState(1);
-  const [tab, setTab] = useState<"profile" | "generate">("generate");
+  const [tab, setTab] = useState<"profile" | "generate" | "catalogue">("generate");
 
   // Key lives server-side only; ask the API whether it's configured.
   const [apiKeySet, setApiKeySet] = useState(false);
@@ -46,6 +52,7 @@ export default function ResumeBuilderPage() {
       let projs = await store.listProjects();
       let d = await store.getDraft();
       const w = await store.getWizard();
+      const entry = await store.getOpenEntry();
 
       if (!p) {
         p = seedProfile();
@@ -78,6 +85,7 @@ export default function ResumeBuilderPage() {
       // Wizards saved before per-step tweaks existed have no `tweaks` — the steps
       // reseed them from the cached AI responses on first render.
       if (w) setWizardState({ ...emptyWizard, ...w, tweaks: w.tweaks ?? {} });
+      setOpenEntryState(entry);
       setReady(true);
     })();
   }, []);
@@ -92,6 +100,9 @@ export default function ResumeBuilderPage() {
   useEffect(() => {
     if (ready) store.setWizard(wizard);
   }, [wizard, ready]);
+  useEffect(() => {
+    if (ready) store.setOpenEntry(openEntry);
+  }, [openEntry, ready]);
 
   // ---- Mutators ----
   const patch: Patch = useCallback((recipe) => {
@@ -163,6 +174,15 @@ export default function ResumeBuilderPage() {
     const withOrder = ps.map((p, i) => ({ ...p, order: p.order ?? i }));
     await store.bulkPutProjects(withOrder);
     setProjects(await store.listProjects());
+  }, []);
+
+  // Opening a catalogue entry replaces the resume on screen and the wizard run
+  // behind it. Basics stay on the profile — they are the same person either way.
+  const onOpenEntry = useCallback((entry: CatalogueEntry) => {
+    setDraftState(structuredClone(entry.snapshot.draft));
+    setWizardState({ ...emptyWizard, ...entry.snapshot.wizard, tweaks: entry.snapshot.wizard.tweaks ?? {} });
+    const { snapshot: _snapshot, ...summary } = entry;
+    setOpenEntryState(summary);
   }, []);
 
   const resetDraft = () => {
@@ -243,6 +263,9 @@ export default function ResumeBuilderPage() {
               <Button variant={tab === "profile" ? "default" : "outline"} size="sm" onClick={() => setTab("profile")}>
                 My Profile
               </Button>
+              <Button variant={tab === "catalogue" ? "default" : "outline"} size="sm" onClick={() => setTab("catalogue")}>
+                Catalogue
+              </Button>
             </div>
 
             {tab === "generate" ? (
@@ -255,6 +278,18 @@ export default function ResumeBuilderPage() {
                 wizard={wizard}
                 updateWizard={updateWizard}
                 onSaveProfile={onProfileChange}
+              />
+            ) : tab === "catalogue" ? (
+              <Catalogue
+                profile={profile}
+                draft={draft}
+                wizard={wizard}
+                openEntry={openEntry}
+                onOpenEntry={onOpenEntry}
+                onCloseEntry={() => setOpenEntryState(null)}
+                onEntryUpdated={setOpenEntryState}
+                pendingSave={pendingSave}
+                onPendingSaveHandled={() => setPendingSave(false)}
               />
             ) : (
               <ProfileManager
@@ -276,6 +311,18 @@ export default function ResumeBuilderPage() {
           <div className="rb-no-print sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5 bg-background/70 backdrop-blur border-b text-xs">
             <span className="text-muted-foreground">Preview</span>
             <div className="flex-1" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7"
+              onClick={() => {
+                setTab("catalogue");
+                setPendingSave(true);
+              }}
+              title="Save this resume to your catalogue"
+            >
+              <Archive className="w-3.5 h-3.5 mr-1" /> Catalogue
+            </Button>
             <Button variant="ghost" size="sm" className="h-7" onClick={saveDraftToProfile} title="Copy resume back to profile">
               <Save className="w-3.5 h-3.5 mr-1" /> Save → profile
             </Button>

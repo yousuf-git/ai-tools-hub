@@ -63,8 +63,33 @@ never exposed to client JavaScript. All auth logic runs in Server Actions
    - Name: `nextjs-ssr`
    - **Scopes** (minimum required by this app):
      - `sessions.write` — create email/password & OAuth sessions server-side
+   - Required for the Resume Builder's **catalogue** (saved resumes per user):
+     - at runtime, to read and write saved resumes: `rows.read`, `rows.write`
+     - additionally for `npm run setup:catalogue`, which builds the schema:
+       `databases.read`, `databases.write`, `tables.read`, `tables.write`,
+       `columns.read`, `columns.write`, `indexes.read`, `indexes.write`
    - Optional (only if you later add admin user management): `users.read`, `users.write`
    - Copy the secret **once** — this is `APPWRITE_API_KEY`. Keep it server-side only.
+
+   Scopes can be edited after the fact: Console → *Overview* → **Integrations** →
+   **API Keys** → pick the key → tick the scopes → **Update**. The secret does not
+   change, so `.env` stays as it is.
+
+6. **Provision the resume catalogue storage**
+
+   ```bash
+   npm run setup:catalogue
+   ```
+
+   Idempotent — it creates the `ai-forge` database, the `resumes` table,
+   its columns and the `userId` index only if they are missing, so it is safe to
+   re-run. Override the ids with `APPWRITE_DATABASE_ID` /
+   `APPWRITE_RESUMES_TABLE_ID` if you prefer different names.
+
+   `missing scopes (["databases.read"])` (or `tables.*`, `columns.*`,
+   `indexes.*`) means the API key is short a scope from step 5 — add it and
+   re-run. Once the schema exists, the schema scopes can be revoked again; the
+   app itself only ever uses `rows.read` / `rows.write`.
 
 ---
 

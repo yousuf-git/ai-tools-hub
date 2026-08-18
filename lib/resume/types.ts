@@ -179,3 +179,36 @@ export type ResumeTask =
   | "projects"
   | "experience"
   | "certifications";
+
+// ---- Resume Catalogue ----
+// A catalogue entry is one resume that was built for one job, saved server-side
+// against the logged-in user. The snapshot is everything needed to reopen that
+// resume exactly as it was — the draft the preview renders plus the wizard run
+// behind it, so the AI steps stay editable after reopening.
+
+export interface CatalogueSnapshot {
+  version: 1;
+  basics: Basics; // identity as it stood when saved (profile-level, kept for portability)
+  draft: ResumeDraft;
+  wizard: WizardState;
+}
+
+/** Metadata the user types when saving — everything except the snapshot. */
+export interface CatalogueMeta {
+  resumeTitle: string; // the only required field — how this resume is listed
+  company: string;
+  jobTitle: string;
+  jobDescription: string;
+  note: string;
+  appliedAt: string; // ISO 8601
+}
+
+export interface CatalogueEntry extends CatalogueMeta {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  snapshot: CatalogueSnapshot;
+}
+
+/** List rows omit the snapshot — it is only fetched when an entry is opened. */
+export type CatalogueSummary = Omit<CatalogueEntry, "snapshot">;

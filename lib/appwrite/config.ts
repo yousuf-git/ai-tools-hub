@@ -23,6 +23,12 @@ export const appwriteConfig = {
   ),
   // Server-only secret. Never exposed to the client bundle.
   apiKey: process.env.APPWRITE_API_KEY ?? "",
+  // App database. One database per app, one table per feature — `resumes` backs
+  // the Resume Catalogue. Rows are tied to a user by their Appwrite account id,
+  // so no separate user table exists. Defaults match what
+  // `npm run setup:catalogue` provisions, so a stock setup needs no extra env.
+  databaseId: process.env.APPWRITE_DATABASE_ID ?? "ai-forge",
+  resumesTableId: process.env.APPWRITE_RESUMES_TABLE_ID ?? "resumes",
 };
 
 /** Name of the httpOnly cookie that stores the Appwrite session secret. */

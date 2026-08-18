@@ -1,14 +1,14 @@
 // Resume Builder persistence — IndexedDB, isolated from every other tool.
 // DB "resume-builder": a "kv" store (profile / draft / wizard) and a "projects" store
 // (the saved-projects manager, keyed by id). Browser-only; all calls are no-ops on the server.
-import type { Profile, ResumeDraft, ResumeProject, WizardState } from "./types";
+import type { CatalogueSummary, Profile, ResumeDraft, ResumeProject, WizardState } from "./types";
 
 const DB_NAME = "resume-builder";
 const DB_VERSION = 1;
 const KV_STORE = "kv";
 const PROJECTS_STORE = "projects";
 
-type KvKey = "profile" | "draft" | "wizard";
+type KvKey = "profile" | "draft" | "wizard" | "openEntry";
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof indexedDB !== "undefined";
@@ -70,6 +70,11 @@ export const setDraft = (d: ResumeDraft) => kvSet("draft", d);
 
 export const getWizard = () => kvGet<WizardState>("wizard");
 export const setWizard = (w: WizardState) => kvSet("wizard", w);
+
+// Which catalogue entry the draft on screen came from, so a refresh still knows
+// what "Update open entry" would overwrite.
+export const getOpenEntry = () => kvGet<CatalogueSummary>("openEntry");
+export const setOpenEntry = (e: CatalogueSummary | null) => kvSet("openEntry", e);
 
 // ---- projects store ----
 export async function listProjects(): Promise<ResumeProject[]> {
